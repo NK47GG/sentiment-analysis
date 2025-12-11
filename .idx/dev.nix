@@ -19,6 +19,7 @@
       # Runs when a workspace is first created with this `dev.nix` file
       onCreate = {
         npm-install = "npm i --no-audit --no-progress --timing";
+        install-charts = "npm install chart.js react-chartjs-2";
         # Open editors for the following files by default, if they exist:
         default.openFiles = [ "src/App.tsx" "src/App.ts" "src/App.jsx" "src/App.js" ];
       };

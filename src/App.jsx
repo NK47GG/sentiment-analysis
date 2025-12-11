@@ -1,7 +1,12 @@
 import { useState } from 'react'
 import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js';
+import { Pie, Bar } from 'react-chartjs-2';
+import ChartDataLabels from 'chartjs-plugin-datalabels';
 import './App.css'
+
+ChartJS.register(ArcElement, Tooltip, Legend, ChartDataLabels, CategoryScale, LinearScale, BarElement);
 
 function App() {
   const [mode, setMode] = useState('text')
@@ -91,7 +96,7 @@ function App() {
   }
 
   // --- HELPER RENDERING ---
-  const renderTable = (apiData) => {
+  const renderTable = (apiData, maxRows = null, maxColumns = null) => {
     let rows = [];
     if (Array.isArray(apiData)) rows = apiData;
     else if (apiData.data && Array.isArray(apiData.data)) rows = apiData.data;
@@ -99,7 +104,14 @@ function App() {
 
     if (rows.length === 0) return <p>Data kosong.</p>;
 
-    const headers = Object.keys(rows[0]);
+    if (maxRows) {
+      rows = rows.slice(0, maxRows);
+    }
+
+    let headers = Object.keys(rows[0]);
+    if (maxColumns) {
+        headers = headers.slice(0, maxColumns);
+    }
 
     return (
       <div style={{ overflowX: 'auto', marginTop: '15px', border: '1px solid #444', borderRadius: '8px' }}>
@@ -126,6 +138,48 @@ function App() {
       </div>
     );
   }
+
+  // --- DOWNLOAD CSV ---
+  const handleDownload = () => {
+    // 1. Ambil datanya
+    const data = result.data.predict_result;
+    
+    if (!data || data.length === 0) {
+      alert("Tidak ada data untuk didownload!");
+      return;
+    }
+
+    const allHeaders = Object.keys(data[0]);
+    const headers = allHeaders.slice(0, 2); 
+    
+    const csvRows = [];
+    
+    // A. Masukkan Header
+    csvRows.push(headers.join(','));
+
+    // B. Masukkan Data Baris per Baris
+    for (const row of data) {
+      const values = headers.map(header => {
+        const escaped = ('' + row[header]).replace(/"/g, '\\"'); // Escape tanda kutip
+        return `"${escaped}"`; // Bungkus pakai kutip biar aman kalau ada koma di dalam teks
+      });
+      csvRows.push(values.join(','));
+    }
+
+    // 4. Gabung jadi String
+    const csvString = csvRows.join('\n');
+
+    // 5. Buat File & Trigger Download
+    const blob = new Blob([csvString], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.setAttribute('hidden', '');
+    a.setAttribute('href', url);
+    a.setAttribute('download', 'hasil_analisis_sentimen.csv');
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
 
   const getSentimentStyle = (data) => {
     if (!data) return { color: '#888', emoji: '😐', text: 'UNKNOWN' }
@@ -290,8 +344,145 @@ function App() {
 
             {result.type === 'file' && (
               <div>
+                {/* --- BAGIAN TABEL --- */}
                 <h3>📊 Hasil Ekstraksi Keyword</h3>
                 {renderTable(result.data)}
+
+                {/* --- BAGIAN TABEL --- */}
+                <h3>📊 Preview of Your Data</h3>
+                {renderTable(result.data.data_preview, 5, null)}
+
+                <h3>📊 Prediction Result</h3>
+                {renderTable(result.data.predict_result, 5, 2)}
+
+                {/* 👇 TOMBOL DOWNLOAD (BARU) 👇 */}
+                <div style={{ textAlign: 'center', marginTop: '15px' }}>
+                  <button 
+                    onClick={handleDownload}
+                    style={{
+                      padding: '10px 20px',
+                      backgroundColor: '#28a745', // Warna Hijau
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '5px',
+                      cursor: 'pointer',
+                      fontSize: '16px',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    📥 Download Full CSV
+                  </button>
+                </div>
+
+                {/* --- BAGIAN PIE CHART (BARU) --- */}
+                {result.data.sentiment_count && (
+                  <div style={{ marginTop: '40px', maxWidth: '400px', margin: '40px auto' }}>
+                    <h3 style={{ textAlign: 'center' }}>📈 Statistik Sentimen</h3>
+                    
+                    <Pie 
+                      data={{
+                        // Ambil Label (Positive, Negative, dll)
+                        labels: result.data.sentiment_count.map(item => item.Sentiment), 
+                        datasets: [
+                          {
+                            label: 'Jumlah',
+                            // Ambil Angka Count
+                            data: result.data.sentiment_count.map(item => item.count), 
+                            backgroundColor: [
+                              '#FF6384', // Merah
+                              '#36A2EB', // Biru
+                              '#FFCE56', // Kuning
+                              '#4BC0C0'  // Hijau (Jaga2 kalo ada data ke-4)
+                            ],
+                            borderWidth: 1,
+                          },
+                        ],
+                      }}
+
+                      options={{
+                        plugins: {
+                          // Konfigurasi khusus untuk datalabels
+                          datalabels: {
+                            color: '#fff', // Warna teks (putih biar kontras)
+                            font: {
+                              weight: 'bold',
+                              size: 14
+                            },
+                            // Rumus untuk menghitung persentase
+                            formatter: (value, context) => {
+                              // 1. Hitung Total Semua Data
+                              const datapoints = context.chart.data.datasets[0].data;
+                              const total = datapoints.reduce((total, datapoint) => total + datapoint, 0);
+                              
+                              // 2. Hitung Persentase Data Ini
+                              const percentage = (value / total * 100).toFixed(1) + '%'; // Hasil: "66.7%"
+                              
+                              // 3. Tampilkan (Cuma tampilkan kalau nilainya > 0 biar gak numpuk)
+                              return value > 0 ? percentage : '';
+                            }
+                          }
+                        }
+                      }}
+                    />
+                  </div>
+                )}
+                
+                {/* --- BAGIAN TABEL --- */}
+                <h3>📊 Preview of Your Data</h3>
+                {renderTable(result.data.top_keywords)}
+
+                {/* --- BAGIAN BAR CHART KEYWORDS --- */}
+                {result.data.top_keywords && (
+                  <div style={{ marginTop: '40px', maxWidth: '600px', margin: '40px auto' }}>
+                    <h3 style={{ textAlign: 'center' }}>🔥 Top Keywords Frequency</h3>
+                    
+                    <Bar 
+                      data={{
+                        // Ambil Label dari kolom "Word"
+                        labels: result.data.top_keywords.map(item => item.Word),
+                        datasets: [
+                          {
+                            label: 'Jumlah Muncul',
+                            // Ambil Data dari kolom "Jumlah"
+                            data: result.data.top_keywords.map(item => item.Jumlah),
+                            backgroundColor: 'rgba(54, 162, 235, 0.6)', // Warna Biru Transparan
+                            borderColor: 'rgba(54, 162, 235, 1)',      // Garis Tepi Biru
+                            borderWidth: 1,
+                          },
+                        ],
+                      }}
+                      options={{
+                        responsive: true,
+                        plugins: {
+                          legend: {
+                            display: false, // Sembunyikan legend biar bersih (opsional)
+                          },
+                          title: {
+                            display: true,
+                            text: 'Kata yang Paling Sering Muncul',
+                          },
+                        },
+                        scales: {
+                          y: {
+                            beginAtZero: true, // Mulai sumbu Y dari angka 0
+                            ticks: {
+                              stepSize: 1 // Paksa angka bulat (biar gak muncul 1.5 kata)
+                            }
+                          }
+                        }
+                      }}
+                    />
+                  </div>
+                )}
+                
+                {/* --- BAGIAN TABEL --- */}
+                <h3>📊 Preview of Your Data</h3>
+                {renderTable(result.data.text_length)}
+
+                {/* --- BAGIAN TABEL --- */}
+                <h3>📊 Preview of Your Data</h3>
+                {renderTable(result.data.word_length)}
+
               </div>
             )}
           </div>
