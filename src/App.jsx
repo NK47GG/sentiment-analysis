@@ -8,6 +8,37 @@ import './App.css'
 
 ChartJS.register(ArcElement, Tooltip, Legend, ChartDataLabels, CategoryScale, LinearScale, BarElement);
 
+// --- KOMPONEN ANIMASI KOSONG (EMPTY STATE) ---
+const EmptyState = ({ message }) => (
+  <div style={{ 
+    textAlign: 'center', 
+    padding: '40px 20px', 
+    background: '#1a1a1a', 
+    borderRadius: '12px',
+    border: '2px dashed #444',
+    marginTop: '20px'
+  }}>
+    <div className="floating-icon" style={{ fontSize: '4rem', marginBottom: '15px' }}>
+      🤖
+    </div>
+    <h3 style={{ margin: '0 0 10px 0', color: '#fff' }}>Hasil Kosong</h3>
+    <p style={{ color: '#888', margin: 0 }}>{message}</p>
+    
+    {/* Style Animasi In-Component */}
+    <style>{`
+      @keyframes float {
+        0% { transform: translateY(0px); }
+        50% { transform: translateY(-15px); }
+        100% { transform: translateY(0px); }
+      }
+      .floating-icon {
+        animation: float 3s ease-in-out infinite;
+        display: inline-block;
+      }
+    `}</style>
+  </div>
+);
+
 function App() {
   const [mode, setMode] = useState('text')
   const [language, setLanguage] = useState('en')
@@ -26,6 +57,32 @@ function App() {
 
   // Result
   const [result, setResult] = useState(null)
+
+  // --- LOGIKA VALIDASI INPUT (ON BLUR) ---
+  const handleNumKeywordsBlur = () => {
+    let val = parseInt(numKeywords);
+    if (!val || val < 1) val = 1;
+    else if (val > 10) val = 10;
+    setNumKeywords(val);
+  }
+
+  const handleNgramMinBlur = () => {
+    let val = parseInt(ngramMin);
+    const maxVal = parseInt(ngramMax);
+    if (!val || val < 1) val = 1;
+    if (val > 3) val = 3;
+    if (val > maxVal) val = maxVal; 
+    setNgramMin(val);
+  }
+
+  const handleNgramMaxBlur = () => {
+    let val = parseInt(ngramMax);
+    const minVal = parseInt(ngramMin);
+    if (!val || val < 1) val = 1;
+    if (val > 3) val = 3;
+    if (val < minVal) val = minVal;
+    setNgramMax(val);
+  }
 
   // --- 1. HANDLE TEXT ---
   const handleAnalyzeText = async () => {
@@ -57,20 +114,17 @@ function App() {
     setIsLoading(true); setError(null); setResult(null);
     const baseUrl = 'https://silvio0-simple-sentiment-analyst.hf.space'
     
-    // Construct Query Parameters
-    const queryParams = new URLSearchParams({
-      num: numKeywords,
-      sentiment: sentimentFilter,
-      ngram_min: ngramMin,
-      ngram_max: ngramMax
-    }).toString();
-
+    // Parameter dikirim via FormData (Body)
     const endpoint = language === 'en' 
-      ? `/predict-table-sentiment/en?${queryParams}` 
-      : `/predict-table-sentiment/id?${queryParams}`;
+      ? `/predict-table-sentiment/en` 
+      : `/predict-table-sentiment/id`;
 
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('num', numKeywords);
+    formData.append('sentiment', sentimentFilter);
+    formData.append('ngram_min', ngramMin);
+    formData.append('ngram_max', ngramMax);
 
     try {
       const response = await fetch(`${baseUrl}${endpoint}`, {
@@ -87,12 +141,12 @@ function App() {
     }
   }
 
-  // Helper Reset ketika ganti mode
+  // Helper Reset
   const handleModeChange = (newMode) => {
     setMode(newMode);
     setResult(null);
     setError(null);
-    setFile(null); // Reset file agar form tertutup kembali
+    setFile(null); 
   }
 
   // --- HELPER RENDERING ---
@@ -102,7 +156,7 @@ function App() {
     else if (apiData.data && Array.isArray(apiData.data)) rows = apiData.data;
     else if (typeof apiData === 'object') rows = Object.entries(apiData).map(([key, val]) => ({ Keyword: key, Count: val }));
 
-    if (rows.length === 0) return <p>Data kosong.</p>;
+    if (rows.length === 0) return <p style={{ color: '#666', fontStyle: 'italic' }}>Data kosong.</p>;
 
     if (maxRows) {
       rows = rows.slice(0, maxRows);
@@ -141,35 +195,23 @@ function App() {
 
   // --- DOWNLOAD CSV ---
   const handleDownload = () => {
-    // 1. Ambil datanya
     const data = result.data.predict_result;
-    
     if (!data || data.length === 0) {
       alert("Tidak ada data untuk didownload!");
       return;
     }
-
     const allHeaders = Object.keys(data[0]);
     const headers = allHeaders.slice(0, 2); 
-    
     const csvRows = [];
-    
-    // A. Masukkan Header
     csvRows.push(headers.join(','));
-
-    // B. Masukkan Data Baris per Baris
     for (const row of data) {
       const values = headers.map(header => {
-        const escaped = ('' + row[header]).replace(/"/g, '\\"'); // Escape tanda kutip
-        return `"${escaped}"`; // Bungkus pakai kutip biar aman kalau ada koma di dalam teks
+        const escaped = ('' + row[header]).replace(/"/g, '\\"');
+        return `"${escaped}"`;
       });
       csvRows.push(values.join(','));
     }
-
-    // 4. Gabung jadi String
     const csvString = csvRows.join('\n');
-
-    // 5. Buat File & Trigger Download
     const blob = new Blob([csvString], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -261,17 +303,24 @@ function App() {
               )}
             </div>
 
-            {/* 2. PENGATURAN & TOMBOL EKSEKUSI (Hanya muncul jika file sudah dipilih) */}
+            {/* 2. PENGATURAN */}
             {file && (
               <div style={{ animation: 'fadeIn 0.5s' }}>
                 <h4 style={{ margin: '10px 0', borderBottom: '1px solid #444' }}>⚙️ Pengaturan Analisis</h4>
                 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
-                  {/* Kolom Kiri */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     <div>
-                      <label style={{fontSize: '0.8rem', display: 'block', marginBottom: '5px'}}>Jumlah Keyword</label>
-                      <input type="number" value={numKeywords} onChange={e => setNumKeywords(e.target.value)} style={{width: '100%', padding: '8px', boxSizing: 'border-box'}} />
+                      <label style={{fontSize: '0.8rem', display: 'block', marginBottom: '5px'}}>Jumlah Keyword (1-10)</label>
+                      <input 
+                        type="number" 
+                        min="1" 
+                        max="10" 
+                        value={numKeywords} 
+                        onChange={e => setNumKeywords(e.target.value)}
+                        onBlur={handleNumKeywordsBlur} 
+                        style={{width: '100%', padding: '8px', boxSizing: 'border-box'}} 
+                      />
                     </div>
                     <div>
                       <label style={{fontSize: '0.8rem', display: 'block', marginBottom: '5px'}}>Filter Sentimen</label>
@@ -283,31 +332,36 @@ function App() {
                     </div>
                   </div>
 
-                  {/* Kolom Kanan (N-Gram Bersebelahan) */}
                   <div>
-                    <label style={{fontSize: '0.8rem', display: 'block', marginBottom: '5px'}}>N-Gram Range (Kata per frase)</label>
+                    <label style={{fontSize: '0.8rem', display: 'block', marginBottom: '5px'}}>N-Gram Range (1-3)</label>
                     <div style={{ display: 'flex', gap: '10px' }}>
-                       <div style={{ flex: 1 }}>
+                        <div style={{ flex: 1 }}>
                           <input 
                             type="number" 
+                            min="1"
+                            max="3"
                             placeholder="Min"
                             value={ngramMin} 
                             onChange={e => setNgramMin(e.target.value)} 
+                            onBlur={handleNgramMinBlur}
                             style={{width: '100%', padding: '8px', textAlign: 'center', boxSizing: 'border-box'}} 
                           />
                           <small style={{fontSize: '0.7rem', color: '#888'}}>Min</small>
-                       </div>
-                       <div style={{ display: 'flex', alignItems: 'center' }}>-</div>
-                       <div style={{ flex: 1 }}>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center' }}>-</div>
+                        <div style={{ flex: 1 }}>
                           <input 
                             type="number" 
+                            min="1"
+                            max="3"
                             placeholder="Max"
                             value={ngramMax} 
                             onChange={e => setNgramMax(e.target.value)} 
+                            onBlur={handleNgramMaxBlur}
                             style={{width: '100%', padding: '8px', textAlign: 'center', boxSizing: 'border-box'}} 
                           />
                           <small style={{fontSize: '0.7rem', color: '#888'}}>Max</small>
-                       </div>
+                        </div>
                     </div>
                   </div>
                 </div>
@@ -344,81 +398,46 @@ function App() {
 
             {result.type === 'file' && (
               <div>
-                {/* --- BAGIAN TABEL --- */}
-                <h3>📊 Hasil Ekstraksi Keyword</h3>
-                {renderTable(result.data)}
-
-                {/* --- BAGIAN TABEL --- */}
-                <h3>📊 Preview of Your Data</h3>
+                <h3 style={{ borderBottom: '1px solid #444', paddingBottom: '5px' }}>📜 Data Mentah (Preview 5 Baris Awal)</h3>
                 {renderTable(result.data.data_preview, 5, null)}
 
-                <h3>📊 Prediction Result</h3>
+                <h3 style={{ borderBottom: '1px solid #444', paddingBottom: '5px', marginTop: '30px' }}>✨ Hasil Prediksi Sentimen (Preview)</h3>
                 {renderTable(result.data.predict_result, 5, 2)}
 
-                {/* 👇 TOMBOL DOWNLOAD (BARU) 👇 */}
                 <div style={{ textAlign: 'center', marginTop: '15px' }}>
                   <button 
                     onClick={handleDownload}
                     style={{
-                      padding: '10px 20px',
-                      backgroundColor: '#28a745', // Warna Hijau
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '5px',
-                      cursor: 'pointer',
-                      fontSize: '16px',
-                      fontWeight: 'bold'
+                      padding: '10px 20px', backgroundColor: '#28a745', color: 'white',
+                      border: 'none', borderRadius: '5px', cursor: 'pointer',
+                      fontSize: '16px', fontWeight: 'bold'
                     }}
                   >
                     📥 Download Full CSV
                   </button>
                 </div>
 
-                {/* --- BAGIAN PIE CHART (BARU) --- */}
                 {result.data.sentiment_count && (
                   <div style={{ marginTop: '40px', maxWidth: '400px', margin: '40px auto' }}>
-                    <h3 style={{ textAlign: 'center' }}>📈 Statistik Sentimen</h3>
-                    
+                    <h3 style={{ textAlign: 'center' }}>📈 Statistik Sentimen Total</h3>
                     <Pie 
                       data={{
-                        // Ambil Label (Positive, Negative, dll)
                         labels: result.data.sentiment_count.map(item => item.Sentiment), 
-                        datasets: [
-                          {
+                        datasets: [{
                             label: 'Jumlah',
-                            // Ambil Angka Count
                             data: result.data.sentiment_count.map(item => item.count), 
-                            backgroundColor: [
-                              '#FF6384', // Merah
-                              '#36A2EB', // Biru
-                              '#FFCE56', // Kuning
-                              '#4BC0C0'  // Hijau (Jaga2 kalo ada data ke-4)
-                            ],
+                            backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0'],
                             borderWidth: 1,
-                          },
-                        ],
+                        }],
                       }}
-
                       options={{
                         plugins: {
-                          // Konfigurasi khusus untuk datalabels
                           datalabels: {
-                            color: '#fff', // Warna teks (putih biar kontras)
-                            font: {
-                              weight: 'bold',
-                              size: 14
-                            },
-                            // Rumus untuk menghitung persentase
+                            color: '#fff', font: { weight: 'bold', size: 14 },
                             formatter: (value, context) => {
-                              // 1. Hitung Total Semua Data
                               const datapoints = context.chart.data.datasets[0].data;
                               const total = datapoints.reduce((total, datapoint) => total + datapoint, 0);
-                              
-                              // 2. Hitung Persentase Data Ini
-                              const percentage = (value / total * 100).toFixed(1) + '%'; // Hasil: "66.7%"
-                              
-                              // 3. Tampilkan (Cuma tampilkan kalau nilainya > 0 biar gak numpuk)
-                              return value > 0 ? percentage : '';
+                              return value > 0 ? (value / total * 100).toFixed(1) + '%' : '';
                             }
                           }
                         }
@@ -427,60 +446,50 @@ function App() {
                   </div>
                 )}
                 
-                {/* --- BAGIAN TABEL --- */}
-                <h3>📊 Preview of Your Data</h3>
-                {renderTable(result.data.top_keywords)}
+                {/* --- 4. TOP KEYWORDS SECTION --- */}
+                <h3 style={{ borderBottom: '1px solid #444', paddingBottom: '5px', marginTop: '40px', color: '#818cf8' }}>
+                   🔥 Top Keywords (Filtered: {sentimentFilter.toUpperCase()})
+                </h3>
+                
+                {/* LOGIKA ANIMASI KOSONG VS DATA ADA */}
+                {result.data.top_keywords && result.data.top_keywords.length > 0 ? (
+                  <>
+                    {/* Tampilkan Tabel Keyword */}
+                    {renderTable(result.data.top_keywords)}
 
-                {/* --- BAGIAN BAR CHART KEYWORDS --- */}
-                {result.data.top_keywords && (
-                  <div style={{ marginTop: '40px', maxWidth: '600px', margin: '40px auto' }}>
-                    <h3 style={{ textAlign: 'center' }}>🔥 Top Keywords Frequency</h3>
-                    
-                    <Bar 
-                      data={{
-                        // Ambil Label dari kolom "Word"
-                        labels: result.data.top_keywords.map(item => item.Word),
-                        datasets: [
-                          {
+                    {/* Tampilkan Grafik Bar Keyword */}
+                    <div style={{ marginTop: '20px', maxWidth: '600px', margin: '20px auto' }}>
+                      <Bar 
+                        data={{
+                          labels: result.data.top_keywords.map(item => item.Word),
+                          datasets: [{
                             label: 'Jumlah Muncul',
-                            // Ambil Data dari kolom "Jumlah"
                             data: result.data.top_keywords.map(item => item.Jumlah),
-                            backgroundColor: 'rgba(54, 162, 235, 0.6)', // Warna Biru Transparan
-                            borderColor: 'rgba(54, 162, 235, 1)',      // Garis Tepi Biru
+                            backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
                             borderWidth: 1,
+                          }],
+                        }}
+                        options={{
+                          responsive: true,
+                          plugins: {
+                            legend: { display: false },
+                            title: { display: true, text: `Frekuensi Kata (${sentimentFilter})` },
                           },
-                        ],
-                      }}
-                      options={{
-                        responsive: true,
-                        plugins: {
-                          legend: {
-                            display: false, // Sembunyikan legend biar bersih (opsional)
-                          },
-                          title: {
-                            display: true,
-                            text: 'Kata yang Paling Sering Muncul',
-                          },
-                        },
-                        scales: {
-                          y: {
-                            beginAtZero: true, // Mulai sumbu Y dari angka 0
-                            ticks: {
-                              stepSize: 1 // Paksa angka bulat (biar gak muncul 1.5 kata)
-                            }
-                          }
-                        }
-                      }}
-                    />
-                  </div>
+                          scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                        }}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  /* TAMPILKAN ANIMASI JIKA KOSONG (IKON TENGKORAK) */
+                  <EmptyState message={`Tidak ada keyword ${sentimentFilter} yang signifikan ditemukan.`} />
                 )}
                 
-                {/* --- BAGIAN TABEL --- */}
-                <h3>📊 Preview of Your Data</h3>
+                <h3 style={{ borderBottom: '1px solid #444', paddingBottom: '5px', marginTop: '30px' }}>🔢 Statistik Panjang Teks (Per Karakter)</h3>
                 {renderTable(result.data.text_length)}
 
-                {/* --- BAGIAN TABEL --- */}
-                <h3>📊 Preview of Your Data</h3>
+                <h3 style={{ borderBottom: '1px solid #444', paddingBottom: '5px', marginTop: '30px' }}>🔢 Statistik Panjang Teks (Per Kata)</h3>
                 {renderTable(result.data.word_length)}
 
               </div>
