@@ -119,7 +119,11 @@ function SentimentAnalysis() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || `Server Error: ${response.status}`);
-      setResult({ type: 'text', data });
+      setResult({ 
+        type: 'text', 
+        prediction: data.prediction, 
+        confidence: data.confidence 
+      });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -416,10 +420,21 @@ function SentimentAnalysis() {
         {result && (
           <Box sx={{ mt: 4, animation: 'fadeIn 0.5s', width: '100%' }}>
             {result.type === 'text' && (
-              <Card sx={{ bgcolor: getSentimentStyle(result.data).bgColor, color: getSentimentStyle(result.data).color, p: 3, textAlign: 'center' }}>
+              <Card sx={{ 
+                // PERBAIKAN: Gunakan result.prediction, bukan result.data
+                bgcolor: getSentimentStyle(result.prediction).bgColor, 
+                color: getSentimentStyle(result.prediction).color, 
+                p: 3, 
+                textAlign: 'center' 
+              }}>
                 <Typography variant="h4">
-                  {getSentimentStyle(result.data).emoji} {getSentimentStyle(result.data).text}
+                  {getSentimentStyle(result.prediction).emoji} {getSentimentStyle(result.prediction).text}
                 </Typography>
+                
+                <Typography variant="h6" sx={{ mt: 2, fontWeight: 'bold', opacity: 0.9 }}>
+                   CONFIDENCE: {(result.confidence * 100).toFixed(1)}%
+                </Typography>
+
               </Card>
             )}
 
@@ -436,7 +451,7 @@ function SentimentAnalysis() {
                     <Typography variant="h5" gutterBottom sx={{ fontSize: { xs: '1.2rem', md: '1.5rem' } }}>
                       Prediction Result
                     </Typography>
-                    {renderTable(result.data.predict_result, 5, 2)}
+                    {renderTable(result.data.predict_result, 5, 3)}
                     <Button onClick={handleDownload} variant="contained" startIcon={<Download />} sx={{ mt: 2 }}>
                       Download Full CSV
                     </Button>
