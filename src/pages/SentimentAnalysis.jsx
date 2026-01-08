@@ -220,7 +220,7 @@ function SentimentAnalysis() {
       return;
     }
     const allHeaders = Object.keys(data[0]);
-    const headers = allHeaders.slice(0, 2);
+    const headers = allHeaders.slice(0, 3);
     const csvRows = [headers.join(',')];
     for (const row of data) {
       const values = headers.map(header => {
