@@ -118,6 +118,73 @@ const PaymentPending = ({ order, onUpdate }) => {
   );
 };
 
+const ContactInfoForm = ({ order, onUpdate }) => {
+  const [contactEmail, setContactEmail] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async () => {
+    if (!contactEmail || !contactPhone) {
+      setError('Email dan nomor telepon wajib diisi.');
+      return;
+    }
+    setSubmitting(true);
+    setError('');
+
+    try {
+      const orderRef = doc(db, "orders", order.id);
+      await updateDoc(orderRef, {
+        status: "contact_info_submitted",
+        contactEmail: contactEmail,
+        contactPhone: contactPhone,
+        updatedAt: serverTimestamp(),
+      });
+      onUpdate({ ...order, status: "contact_info_submitted", contactEmail, contactPhone });
+    } catch (err) {
+      console.error("Gagal menyimpan info kontak:", err);
+      setError("Gagal menyimpan informasi. Silakan coba lagi.");
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Box>
+      <Alert severity="info" sx={{ mb: 2 }}>
+        <AlertTitle>Informasi Kontak Konsultasi</AlertTitle>
+        Paket Anda termasuk sesi konsultasi. Silakan isi detail kontak Anda agar tim kami dapat menghubungi untuk penjadwalan.
+      </Alert>
+      <Stack spacing={2} sx={{ my: 2 }}>
+        <TextField
+          label="Email untuk Dihubungi"
+          type="email"
+          fullWidth
+          value={contactEmail}
+          onChange={(e) => setContactEmail(e.target.value)}
+          required
+        />
+        <TextField
+          label="Nomor Telepon (WhatsApp)"
+          type="tel"
+          fullWidth
+          value={contactPhone}
+          onChange={(e) => setContactPhone(e.target.value)}
+          required
+        />
+      </Stack>
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      <Button
+        variant="contained"
+        onClick={handleSubmit}
+        disabled={submitting}
+        startIcon={submitting ? <CircularProgress size={20} color="inherit" /> : <CheckCircle />}
+      >
+        {submitting ? "Menyimpan..." : "Simpan & Lanjutkan Unggah Data"}
+      </Button>
+    </Box>
+  );
+};
+
 const DataUploadRequired = ({ order, onUpdate }) => {
   const [dataFile, setDataFile] = useState(null);
   const [comments, setComments] = useState("");
@@ -173,7 +240,7 @@ const DataUploadRequired = ({ order, onUpdate }) => {
   return (
     <Box>
       <Alert severity="success" sx={{ mb: 2 }}>
-        <AlertTitle>Pembayaran Terverifikasi!</AlertTitle>
+        <AlertTitle>Langkah Terakhir: Unggah Data</AlertTitle>
         Silakan unggah file data Anda untuk dianalisis.
       </Alert>
       <TextField
@@ -213,11 +280,9 @@ const ResultsReady = ({ order }) => {
     try {
       const orderRef = doc(db, "orders", order.id);
       await updateDoc(orderRef, { status: "done" });
-      // After successfully marking as done, navigate to the home page.
       navigate('/');
     } catch (err) {
       console.error(`Gagal menyelesaikan pesanan: ${err.message}.`);
-      // Optionally, show an error to the user before they navigate away
     }
   };
 
@@ -271,7 +336,6 @@ const Payment = () => {
   const [loadingPage, setLoadingPage] = useState(true);
   const [error, setError] = useState(null);
 
-  // This callback is now only used by components that don't navigate away
   const handleOrderUpdate = useCallback((newOrderState) => {
     setOrder(newOrderState);
   }, []);
@@ -290,6 +354,7 @@ const Payment = () => {
         "pending_payment",
         "payment_uploaded",
         "payment_verified",
+        "contact_info_submitted",
         "file_uploaded",
         "completed",
       ])
@@ -321,7 +386,6 @@ const Payment = () => {
 
       let price = order.packagePrice;
 
-      // Fallback for old orders that might not have the packagePrice field
       if (typeof price !== 'number') {
           const matchedPackage = packageMasterList[order.packageType];
           if (matchedPackage) {
@@ -357,7 +421,6 @@ const Payment = () => {
       );
     }
 
-    // Done status is now handled by the absence of an order from the main query
     switch (order.status) {
       case "pending_payment":
         return <PaymentPending order={order} onUpdate={handleOrderUpdate} />;
@@ -369,6 +432,11 @@ const Payment = () => {
           />
         );
       case "payment_verified":
+        if (order.packageType === 'Growth' || order.packageType === 'Pro') {
+            return <ContactInfoForm order={order} onUpdate={handleOrderUpdate} />;
+        }
+        return <DataUploadRequired order={order} onUpdate={handleOrderUpdate} />;
+      case "contact_info_submitted":
         return <DataUploadRequired order={order} onUpdate={handleOrderUpdate} />;
       case "file_uploaded":
         return (

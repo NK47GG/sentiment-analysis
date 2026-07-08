@@ -143,7 +143,8 @@ const Admin = () => {
             </Button>
           </Box>
         );
-      case "file_uploaded":
+       case "contact_info_submitted":
+       case "file_uploaded":
         return (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'flex-start' }}>
              {order.userComments && (
@@ -203,7 +204,10 @@ const Admin = () => {
                 <TableRow>
                   <TableCell>Order ID</TableCell>
                   <TableCell>User ID</TableCell>
+                  <TableCell>Package</TableCell>
                   <TableCell>Status</TableCell>
+                   <TableCell>Contact Email</TableCell>
+                  <TableCell>Contact Phone</TableCell>
                   <TableCell>Created At</TableCell>
                   <TableCell sx={{ width: '40%' }}>Actions & Details</TableCell>
                 </TableRow>
@@ -215,13 +219,16 @@ const Admin = () => {
                       <Typography variant="caption">{order.id}</Typography>
                     </TableCell>
                     <TableCell><Typography variant="caption">{order.userId}</Typography></TableCell>
+                    <TableCell>{order.packageType}</TableCell>
                     <TableCell>{order.status}</TableCell>
+                    <TableCell>{order.contactEmail || '-'}</TableCell>
+                    <TableCell>{order.contactPhone || '-'}</TableCell>
                     <TableCell>{order.createdAt?.toDate().toLocaleString()}</TableCell>
                     <TableCell>{renderOrderActions(order)}</TableCell>
                   </TableRow>
                 )) : (
                   <TableRow>
-                    <TableCell colSpan={6} align="center">
+                    <TableCell colSpan={8} align="center">
                       <Typography>No orders found for this filter.</Typography>
                     </TableCell>
                   </TableRow>
