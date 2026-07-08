@@ -1,4 +1,5 @@
-import { useState } from 'react';
+
+import { useState, useEffect } from 'react';
 import {
   AppBar,
   Toolbar,
@@ -14,13 +15,35 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { BubbleChart, Menu as MenuIcon } from '@mui/icons-material';
+import { auth } from "../firebase";
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 
 function Navbar() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [user, setUser] = useState(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const idTokenResult = await user.getIdTokenResult();
+        user.isAdmin = idTokenResult.claims.admin;
+        setUser(user);
+      } else {
+        setUser(null);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleSignOut = async () => {
+    await signOut(auth);
+    navigate("/");
+  };
 
   const toggleDrawer = (open) => (event) => {
     if (event.type === 'keydown' && (event.key === 'Tab' || event.key === 'Shift')) {
@@ -50,6 +73,13 @@ function Navbar() {
             </ListItemButton>
           </ListItem>
         ))}
+        {user && user.isAdmin && (
+            <ListItem disablePadding>
+                <ListItemButton component={Link} to="/admin">
+                    <ListItemText primary="Admin" />
+                </ListItemButton>
+            </ListItem>
+        )}
       </List>
     </Box>
   );
@@ -96,7 +126,17 @@ function Navbar() {
                 {link.text}
               </Button>
             ))}
+            {user && user.isAdmin && (
+                <Button color="inherit" component={Link} to="/admin">
+                    Admin
+                </Button>
+            )}
           </>
+        )}
+        {user ? (
+          <Button color="inherit" onClick={handleSignOut}>Sign Out</Button>
+        ) : (
+          <Button color="inherit" component={Link} to="/signin">Sign In</Button>
         )}
       </Toolbar>
     </AppBar>

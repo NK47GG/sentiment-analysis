@@ -1,5 +1,7 @@
 {
-  "projects": {},
+  "projects": {
+    "default": "insightify-2caf8"
+  },
   "targets": {},
   "etags": {}
 }
