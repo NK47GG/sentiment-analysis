@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from "react";
-import { db, storage } from "../firebase";
-import { collection, query, onSnapshot, doc, updateDoc } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db } from "../firebase";
+import { supabase } from "../supabase"; // Import Supabase
+import { collection, query, onSnapshot, doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import {
   Box,
   Typography,
@@ -19,6 +19,7 @@ import {
   Link,
   TextField,
   CircularProgress,
+  Alert, 
 } from "@mui/material";
 
 const Admin = () => {
@@ -27,6 +28,7 @@ const Admin = () => {
   const [filter, setFilter] = useState("payment_uploaded");
   const [resultFile, setResultFile] = useState(null);
   const [uploading, setUploading] = useState(null); // Tracks uploading state per order
+  const [error, setError] = useState(null); // To show errors to the admin
 
   useEffect(() => {
     setLoading(true);
@@ -38,8 +40,9 @@ const Admin = () => {
       });
       setOrders(ordersData.sort((a, b) => (b.createdAt?.toDate() || 0) - (a.createdAt?.toDate() || 0)));
       setLoading(false);
-    }, (error) => {
-      console.error("Error fetching orders: ", error);
+    }, (err) => {
+      console.error("Error fetching orders: ", err);
+      setError("Failed to fetch orders.");
       setLoading(false);
     });
     return () => unsubscribe();
@@ -54,10 +57,11 @@ const Admin = () => {
     try {
       await updateDoc(orderRef, {
         status: "payment_verified",
-        updatedAt: new Date(),
+        updatedAt: serverTimestamp(),
       });
-    } catch (error) {
-      console.error("Error accepting payment: ", error);
+    } catch (err) {
+      console.error("Error accepting payment: ", err);
+      setError(`Failed to accept payment for order ${orderId}.`);
     }
   };
 
@@ -66,10 +70,11 @@ const Admin = () => {
     try {
       await updateDoc(orderRef, {
         status: "payment_rejected",
-        updatedAt: new Date(),
+        updatedAt: serverTimestamp(),
       });
-    } catch (error) {
-      console.error("Error rejecting payment: ", error);
+    } catch (err) {
+      console.error("Error rejecting payment: ", err);
+       setError(`Failed to reject payment for order ${orderId}.`);
     }
   };
 
@@ -82,20 +87,38 @@ const Admin = () => {
   const handleUploadResult = async (orderId) => {
     if (!resultFile) return;
     setUploading(orderId);
-    const resultFileRef = ref(storage, `results/${orderId}/${resultFile.name}`);
+    setError(null);
+    const filePath = `result-files/${orderId}-${resultFile.name}`;
     
     try {
-      await uploadBytes(resultFileRef, resultFile);
-      const resultFileUrl = await getDownloadURL(resultFileRef);
+      const { error: uploadError } = await supabase.storage
+        .from("insightify-files")
+        .upload(filePath, resultFile);
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { data } = supabase.storage
+        .from("insightify-files")
+        .getPublicUrl(filePath);
+
+       if (!data.publicUrl) {
+         throw new Error("Could not get public URL for the uploaded file.");
+      }
+
+      const resultFileUrl = data.publicUrl;
 
       const orderRef = doc(db, "orders", orderId);
       await updateDoc(orderRef, {
         status: "completed",
-        resultFileUrl,
-        updatedAt: new Date(),
+        resultFileUrl: resultFileUrl,
+        updatedAt: serverTimestamp(),
       });
-    } catch (error) {
-      console.error("Error uploading result file: ", error);
+
+    } catch (err) {
+      console.error("Error uploading result file: ", err);
+      setError(`Upload failed: ${err.message}`);
     } finally {
       setResultFile(null);
       setUploading(null);
@@ -109,13 +132,13 @@ const Admin = () => {
       case "payment_uploaded":
         return (
           <Box sx={{ display: 'flex', gap: 1 }}>
-            <Button variant="contained" color="success" onClick={() => handleAcceptPayment(order.id)}>
+            <Button variant="contained" color="success" size="small" onClick={() => handleAcceptPayment(order.id)}>
               Accept
             </Button>
-            <Button variant="contained" color="error" onClick={() => handleRejectPayment(order.id)}>
+            <Button variant="contained" color="error" size="small" onClick={() => handleRejectPayment(order.id)}>
               Reject
             </Button>
-            <Button variant="outlined" component={Link} href={order.buktiTransferUrl} target="_blank" rel="noopener noreferrer">
+            <Button variant="outlined" size="small" component="a" href={order.buktiTransferUrl} target="_blank" rel="noopener noreferrer">
               View Proof
             </Button>
           </Box>
@@ -123,37 +146,51 @@ const Admin = () => {
       case "file_uploaded":
         return (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'flex-start' }}>
-            <Button variant="outlined" component={Link} href={order.dataFileUrl} target="_blank" rel="noopener noreferrer">
-              View Data File
+             {order.userComments && (
+              <Paper variant="outlined" sx={{p: 1.5, mb: 1, width: '100%', bgcolor: '#fffbe6', borderColor: '#ffe58f' }}>
+                  <Typography variant="caption" sx={{fontWeight: 'bold', display: 'block', color: '#664d03'}}>User Comments:</Typography>
+                  <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', color: '#664d03'}}>{order.userComments}</Typography>
+              </Paper>
+            )}
+            <Button variant="outlined" size="small" component="a" href={order.dataFileUrl} target="_blank" rel="noopener noreferrer">
+              Download Data File
             </Button>
-            {order.clientComment && <Typography variant="body2">Client Comment: {order.clientComment}</Typography>}
-            <TextField type="file" size="small" onChange={handleFileChange} />
+            <TextField type="file" size="small" onChange={handleFileChange} sx={{mt: 1, width: '100%'}} />
             <Button 
               variant="contained" 
               onClick={() => handleUploadResult(order.id)} 
               disabled={!resultFile || uploading === order.id}
+              size="small"
+              sx={{width: '100%'}}
             >
               {uploading === order.id ? <CircularProgress size={24} /> : 'Upload Result'}
             </Button>
           </Box>
         );
       default:
+        if (order.status === 'completed' && order.resultFileUrl) {
+            return <Button variant="outlined" size="small" component="a" href={order.resultFileUrl} target="_blank" rel="noopener noreferrer">View Result</Button>
+        }
+         if (order.status === 'payment_verified') {
+            return <Typography variant="caption" color="text.secondary">Waiting for client file...</Typography>
+        }
         return <Typography variant="caption" color="text.secondary">No actions required</Typography>;
     }
   };
 
   return (
-    <Box>
+    <Box sx={{ p: 2 }}>
       <Typography variant="h4" gutterBottom>
         Admin Dashboard
       </Typography>
+      {error && <Alert severity="error" sx={{mb: 2}}>{error}</Alert>}
       <Paper elevation={3}>
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
           <Tabs value={filter} onChange={handleFilterChange} aria-label="Order status filter">
             <Tab label="Payment Uploaded" value="payment_uploaded" />
-            <Tab label="Payment Verified" value="payment_verified" />
             <Tab label="File Uploaded" value="file_uploaded" />
             <Tab label="Completed" value="completed" />
+             <Tab label="Payment Verified" value="payment_verified" />
             <Tab label="All" value="all" />
           </Tabs>
         </Box>
@@ -166,20 +203,18 @@ const Admin = () => {
                 <TableRow>
                   <TableCell>Order ID</TableCell>
                   <TableCell>User ID</TableCell>
-                  <TableCell>Package</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell>Created At</TableCell>
-                  <TableCell sx={{ width: '40%' }}>Actions</TableCell>
+                  <TableCell sx={{ width: '40%' }}>Actions & Details</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {filteredOrders.length > 0 ? filteredOrders.map((order) => (
                   <TableRow key={order.id} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
-                    <TableCell component="th" scope="row">
+                    <TableCell>
                       <Typography variant="caption">{order.id}</Typography>
                     </TableCell>
                     <TableCell><Typography variant="caption">{order.userId}</Typography></TableCell>
-                    <TableCell>{order.packageType}</TableCell>
                     <TableCell>{order.status}</TableCell>
                     <TableCell>{order.createdAt?.toDate().toLocaleString()}</TableCell>
                     <TableCell>{renderOrderActions(order)}</TableCell>

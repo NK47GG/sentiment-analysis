@@ -343,7 +343,6 @@ function SentimentAnalysis() {
                 <Typography variant="h6" sx={{ fontSize: { xs: '0.9rem', md: '1.25rem' } }}>
                   {file ? file.name : 'Click to Select CSV/Excel File'}
                 </Typography>
-                {!file && <Typography color="text.secondary" sx={{ fontSize: { xs: '0.8rem', md: '1rem' } }}>Header must include "komentar"</Typography>}
               </Box>
 
               {file && (
@@ -421,7 +420,6 @@ function SentimentAnalysis() {
           <Box sx={{ mt: 4, animation: 'fadeIn 0.5s', width: '100%' }}>
             {result.type === 'text' && (
               <Card sx={{ 
-                // PERBAIKAN: Gunakan result.prediction, bukan result.data
                 bgcolor: getSentimentStyle(result.prediction).bgColor, 
                 color: getSentimentStyle(result.prediction).color, 
                 p: 3, 

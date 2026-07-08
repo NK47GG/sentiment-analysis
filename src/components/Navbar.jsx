@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import {
   AppBar,
@@ -18,27 +17,33 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 import { BubbleChart, Menu as MenuIcon } from '@mui/icons-material';
 import { auth } from "../firebase";
-import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { useAuthState } from 'react-firebase-hooks/auth'; // Using the hook is simpler
+import { signOut } from 'firebase/auth';
 
 function Navbar() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [user, setUser] = useState(null);
+  const [user] = useAuthState(auth); // authState hook provides user object
+  const [isAdmin, setIsAdmin] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    // Check for admin claim when user object changes
+    const checkAdminStatus = async () => {
       if (user) {
-        const idTokenResult = await user.getIdTokenResult();
-        user.isAdmin = idTokenResult.claims.admin;
-        setUser(user);
+        try {
+          const idTokenResult = await user.getIdTokenResult();
+          setIsAdmin(!!idTokenResult.claims.admin);
+        } catch (e) {
+          setIsAdmin(false);
+        }
       } else {
-        setUser(null);
+        setIsAdmin(false);
       }
-    });
-    return () => unsubscribe();
-  }, []);
+    };
+    checkAdminStatus();
+  }, [user]);
 
   const handleSignOut = async () => {
     await signOut(auth);
@@ -52,11 +57,36 @@ function Navbar() {
     setDrawerOpen(open);
   };
 
-  const navLinks = [
-    { text: 'Home', path: '/' },
-    { text: 'Analyzer', path: '/analysis' },
-    { text: 'How to Use', path: '/how-to-use' },
-  ];
+  // This function determines which navigation links to show based on user role.
+  const getVisibleLinks = () => {
+    // Base links visible to everyone (guests)
+    const guestLinks = [
+      { text: 'Home', path: '/' },
+      { text: 'Analyzer', path: '/analysis' },
+      { text: 'How to Use', path: '/how-to-use' },
+      { text: 'Pricing', path: '/pricing'},
+    ];
+
+    if (user) {
+      if (isAdmin) {
+          // Admin users see only a link to their dashboard
+          return [{ text: 'Admin Dashboard', path: '/admin' }];
+      }
+      // Regular logged-in users
+      return [
+        { text: 'Home', path: '/' },
+        // The 'Analyzer' link is intentionally omitted for logged-in users
+        { text: 'How to Use', path: '/how-to-use' },
+        { text: 'History', path: '/history' },
+        { text: 'Pricing', path: '/pricing'},
+      ];
+    }
+    
+    // If not logged in, show guest links
+    return guestLinks;
+  };
+
+  const visibleNavLinks = getVisibleLinks();
 
   const drawer = (
     <Box
@@ -66,22 +96,39 @@ function Navbar() {
       onKeyDown={toggleDrawer(false)}
     >
       <List>
-        {navLinks.map((link) => (
+        {visibleNavLinks.map((link) => (
           <ListItem key={link.text} disablePadding>
             <ListItemButton component={Link} to={link.path}>
               <ListItemText primary={link.text} />
             </ListItemButton>
           </ListItem>
         ))}
-        {user && user.isAdmin && (
-            <ListItem disablePadding>
-                <ListItemButton component={Link} to="/admin">
-                    <ListItemText primary="Admin" />
-                </ListItemButton>
-            </ListItem>
-        )}
+         {user ? (
+              <ListItem disablePadding>
+                  <ListItemButton onClick={handleSignOut}>
+                      <ListItemText primary="Sign Out" />
+                  </ListItemButton>
+              </ListItem>
+          ) : (
+              <ListItem disablePadding>
+                  <ListItemButton component={Link} to="/signin">
+                      <ListItemText primary="Sign In" />
+                  </ListItemButton>
+              </ListItem>
+          )}
       </List>
     </Box>
+  );
+
+  const AuthButtons = () => (
+      user ? (
+          <Button color="inherit" onClick={handleSignOut}>Sign Out</Button>
+      ) : (
+          <Box>
+            <Button color="inherit" component={Link} to="/signin">Sign In</Button>
+            <Button variant="contained" component={Link} to="/analysis" sx={{ml: 1}}>Try for Free</Button>
+          </Box>
+      )
   );
 
   return (
@@ -103,10 +150,11 @@ function Navbar() {
         <Box sx={{ flexGrow: 1 }} />
         {isMobile ? (
           <>
+            <AuthButtons />
             <IconButton
               color="inherit"
               aria-label="open drawer"
-              edge="start"
+              edge="end"
               onClick={toggleDrawer(true)}
             >
               <MenuIcon />
@@ -121,22 +169,13 @@ function Navbar() {
           </>
         ) : (
           <>
-            {navLinks.map((link) => (
+            {visibleNavLinks.map((link) => (
               <Button key={link.text} color="inherit" component={Link} to={link.path}>
                 {link.text}
               </Button>
             ))}
-            {user && user.isAdmin && (
-                <Button color="inherit" component={Link} to="/admin">
-                    Admin
-                </Button>
-            )}
+             <AuthButtons />
           </>
-        )}
-        {user ? (
-          <Button color="inherit" onClick={handleSignOut}>Sign Out</Button>
-        ) : (
-          <Button color="inherit" component={Link} to="/signin">Sign In</Button>
         )}
       </Toolbar>
     </AppBar>

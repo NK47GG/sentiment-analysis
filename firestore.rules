@@ -2,11 +2,33 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /users/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+
+    // Admins can read and write all data
+    function isAdmin() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
+
+    // Users can only read/write their own data
+    match /users/{userId} {
+      allow read, write: if request.auth.uid == userId;
+    }
+
+    // Orders can be created by any authenticated user
+    // Users can only read their own orders
+    // Admins can read all orders
     match /orders/{orderId} {
-      allow read, write: if request.auth != null && (request.auth.uid == resource.data.userId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      allow create: if request.auth != null;
+      allow read: if request.auth.uid == resource.data.userId || isAdmin();
+      // Allow admins to update any field.
+      // Users can update their own order's status from 'completed' to 'done',
+      // and no other fields can be changed in that update.
+      allow update: if isAdmin() ||
+        (
+          request.auth.uid == resource.data.userId &&
+          resource.data.status == 'completed' &&
+          request.resource.data.status == 'done' &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        );
     }
   }
 }

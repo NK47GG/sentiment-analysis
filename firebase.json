@@ -32,7 +32,7 @@
   ],
   "firestore": {
     "database": "(default)",
-    "location": "nam5",
+    "location": "asia-southeast2",
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   }

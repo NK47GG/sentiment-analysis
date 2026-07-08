@@ -1,5 +1,4 @@
-
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import React, { useEffect, useState } from 'react';
 import Home from "./pages/Home";
 import SentimentAnalysis from "./pages/SentimentAnalysis";
@@ -7,13 +6,13 @@ import HowToUse from "./pages/HowToUse";
 import SignIn from "./pages/SignIn";
 import SignUp from "./pages/SignUp";
 import Admin from "./pages/Admin";
-import Payment from "./pages/Payment"; // Import the Payment component
-import { Box, CssBaseline, ThemeProvider, createTheme, CircularProgress } from "@mui/material";
+import Payment from "./pages/Payment"; 
+import HistoryPage from "./pages/History";
+import Pricing from "./pages/Pricing"; // Import the new Pricing page
+import { Box, Typography, CssBaseline, ThemeProvider, createTheme, CircularProgress, Container, Paper, Link } from "@mui/material";
 import Navbar from "./components/Navbar";
 import { auth } from "./firebase";
-import { onAuthStateChanged } from "firebase/auth";
 import { useAuthState } from 'react-firebase-hooks/auth';
-
 
 const theme = createTheme({
   palette: {
@@ -61,74 +60,78 @@ const theme = createTheme({
   },
 });
 
-// This component will handle the title update
-const TitleUpdater = () => {
-  const location = useLocation();
-
-  useEffect(() => {
-    const path = location.pathname.toLowerCase();
-    let title = 'Insightify';
-    if (path === '/') {
-      title = 'Insightify | Home';
-    } else if (path.startsWith('/analysis')) {
-      title = 'Insightify | Analysis';
-    } else if (path.startsWith('/how-to-use')) {
-      title = 'Insightify | How To Use';
-    } else if (path.startsWith('/payment')) {
-      title = 'Insightify | Payment';
-    } else if (path.startsWith('/admin')) {
-      title = 'Insightify | Admin';
-    } else if (path.startsWith('/signin') || path.startsWith('/signup')) {
-      title = 'Insightify | Account';
-    }
-    document.title = title;
-  }, [location]);
-
-  return null; // This component does not render anything
-};
+// Placeholder for Contact Page
+const Contact = () => (
+    <Container maxWidth="sm">
+        <Paper sx={{p: 4, textAlign: 'center'}}>
+            <Typography variant="h4" gutterBottom>Hubungi Tim Sales Kami</Typography>
+            <Typography variant="body1" color="text.secondary">
+                Untuk paket Enterprise atau pertanyaan lebih lanjut, silakan kirim email ke: 
+                <Link href="mailto:sales@insightify.com" color="primary">sales@insightify.com</Link>
+            </Typography>
+        </Paper>
+    </Container>
+);
 
 const AppRoutes = () => {
-    const [user, loading, error] = useAuthState(auth);
+    const [user, loading] = useAuthState(auth);
     const [isAdmin, setIsAdmin] = useState(false);
-    const [loadingAdminCheck, setLoadingAdminCheck] = useState(true);
+    const [isCheckingAdmin, setIsCheckingAdmin] = useState(true);
 
     useEffect(() => {
-        const checkAdminStatus = async () => {
+        const checkAdmin = async () => {
+            setIsCheckingAdmin(true);
             if (user) {
                 try {
-                    const idTokenResult = await user.getIdTokenResult();
+                    const idTokenResult = await user.getIdTokenResult(true); // Force refresh
                     setIsAdmin(idTokenResult.claims.admin === true);
-                } catch (e) {
-                    console.error("Error checking admin status", e);
+                } catch (error) {
+                    console.error("Error checking admin status:", error);
                     setIsAdmin(false);
                 }
             } else {
-                setIsAdmin(false);
+                setIsAdmin(false); // Not logged in, not an admin
             }
-            setLoadingAdminCheck(false);
+            setIsCheckingAdmin(false);
         };
 
-        checkAdminStatus();
+        checkAdmin();
     }, [user]);
 
-    if (loading || loadingAdminCheck) {
-        return <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}><CircularProgress /></Box>;
+    if (loading || isCheckingAdmin) {
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 'calc(100vh - 64px)' }}>
+                <CircularProgress />
+            </Box>
+        );
+    }
+
+    if (isAdmin) {
+        return (
+            <Routes>
+                <Route path="/admin" element={<Admin />} />
+                <Route path="*" element={<Navigate to="/admin" replace />} />
+            </Routes>
+        );
     }
 
     return (
         <Routes>
+            {/* Public Routes */}
             <Route path="/" element={<Home />} />
             <Route path="/analysis" element={<SentimentAnalysis />} />
             <Route path="/how-to-use" element={<HowToUse />} />
+            <Route path="/pricing" element={<Pricing />} />
+            <Route path="/contact" element={<Contact />} /> 
             <Route path="/signin" element={<SignIn />} />
             <Route path="/signup" element={<SignUp />} />
-            
-            {/* Protected Routes */}
-            {user && <Route path="/payment" element={<Payment />} />}
-            {user && isAdmin && <Route path="/admin" element={<Admin />} />}
 
-            {/* Fallback for protected routes if user is not logged in */}
-            {!user && <Route path="/payment" element={<SignIn />} />}
+            {/* Protected Routes for logged-in (non-admin) users */}
+            <Route path="/payment" element={user ? <Payment /> : <Navigate to="/signin" />} />
+            <Route path="/history" element={user ? <HistoryPage /> : <Navigate to="/signin" />} />
+
+            <Route path="/admin" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
     );
 }
@@ -142,7 +145,6 @@ function App() {
         bgcolor: 'background.default',
       }}>
         <BrowserRouter>
-          <TitleUpdater />
           <Navbar />
           <Box component="main" sx={{ px: { xs: 2, md: 4 }, py: 4 }}>
             <AppRoutes />

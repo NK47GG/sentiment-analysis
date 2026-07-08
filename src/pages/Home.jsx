@@ -1,211 +1,210 @@
-
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuthState } from 'react-firebase-hooks/auth';
 import { db, auth } from '../firebase';
-import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
-import { Button, Typography, Box, Grid, Card, CardContent, Container, Accordion, AccordionSummary, AccordionDetails, Paper, CardActions, CircularProgress, Snackbar, Alert } from '@mui/material';
-import { Insights, UploadFile, AutoAwesome, ExpandMore, CheckCircle } from '@mui/icons-material';
+import {
+    collection,
+    query,
+    where,
+    getDocs,
+    addDoc,
+    serverTimestamp,
+} from 'firebase/firestore';
+import { useAuthState } from 'react-firebase-hooks/auth';
+import {
+    Box,
+    Typography,
+    Button,
+    Container,
+    Grid,
+    Card,
+    CardContent,
+    Paper,
+    CircularProgress,
+    Alert,
+    Chip
+} from '@mui/material';
+import { ArrowForward, CheckCircle, BarChart, Insights, Forum } from '@mui/icons-material';
 
-const FeatureCard = ({ icon, title, description }) => (
-  <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', textAlign: 'center', backgroundColor: 'rgba(255, 255, 255, 0.05)', boxShadow: '0 8px 25px rgba(0, 0, 0, 0.2)', transition: 'transform 0.3s ease, box-shadow 0.3s ease', '&:hover': { transform: 'translateY(-8px)', boxShadow: '0 16px 35px rgba(0, 0, 0, 0.3)' } }}>
-    <CardContent sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
-      <Box sx={{ color: 'primary.main', lineHeight: 1, fontSize: { xs: '3rem', md: '3.5rem' }, mb: 2 }}>{icon}</Box>
-      <Typography variant={{ xs: 'h6', md: 'h5' }} component="div" sx={{ mb: 1.5, fontWeight: 600 }}>{title}</Typography>
-      <Typography color="text.secondary">{description}</Typography>
-    </CardContent>
-  </Card>
-);
-
-const PricingCard = ({ title, price, features, buttonText, buttonVariant, onButtonClick, loading }) => (
-    <Paper sx={{ p: 4, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', border: buttonVariant === 'contained' ? '2px solid #42a5f5' : '1px solid rgba(255,255,255,0.12)' }}>
-        <Box>
-            <Typography variant="h4" component="h3" gutterBottom>{title}</Typography>
-            <Typography variant="h3" component="p" gutterBottom>{price}</Typography>
-            <Box component="ul" sx={{ p: 0, listStyle: 'none', my: 2 }}>
-                {features.map((feature, index) => (
-                    <Box component="li" key={index} sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                        <CheckCircle color="success" sx={{ mr: 1.5 }} />
-                        <Typography>{feature}</Typography>
-                    </Box>
-                ))}
-            </Box>
-        </Box>
-        <CardActions sx={{ p: 0, mt: 2 }}>
-             <Button variant={buttonVariant} color="primary" fullWidth size="large" onClick={onButtonClick} disabled={loading}>
-                {loading ? <CircularProgress size={24} color="inherit" /> : buttonText}
-            </Button>
-        </CardActions>
-    </Paper>
-);
-
-
-const faqs = [
-  {
-    question: 'What is Sentiment Analysis AI?',
-    answer: 'It is an intelligent tool designed to analyze and interpret emotions and opinions from text data. It helps organizations understand feedback from customers, donors, or any community to make data-driven decisions.',
-  },
-  {
-    question: 'Who can benefit from this tool?',
-    answer: 'Both for-profit businesses and non-profit organizations can benefit. Businesses can track brand perception and customer satisfaction, while non-profits can gauge public opinion, donor sentiment, or community feedback on social issues.',
-  },
-  {
-    question: 'What kind of data can I analyze?',
-    answer: 'You can analyze single pieces of text, like a social media comment, or upload a file (CSV/Excel) containing thousands of comments for bulk analysis. The file must contain a column named "komentar".',
-  },
-  {
-    question: 'Is the analysis available in multiple languages?',
-    answer: 'Yes, our tool currently supports both English and Indonesian, allowing you to analyze feedback from a diverse range of sources.'
-  }
+const featureCards = [
+    {
+        icon: <BarChart fontSize="large" color="primary" />,
+        title: 'Analisis Sentimen Otomatis',
+        description: 'Pahami emosi dan opini dalam teks secara akurat dan cepat menggunakan AI terdepan.',
+    },
+    {
+        icon: <Insights fontSize="large" color="primary" />,
+        title: 'Insight Pasar & Kompetitor',
+        description: 'Dapatkan gambaran lanskap pasar dan posisi kompetitor dari data publik dan review pelanggan.',
+    },
+    {
+        icon: <Forum fontSize="large" color="primary" />,
+        title: 'Rekomendasi Strategi Bisnis',
+        description: 'Ubah data menjadi langkah konkret. Dapatkan rekomendasi strategi yang dapat ditindaklanjuti.',
+    },
 ];
 
-function Home() {
-  const [user] = useAuthState(auth);
-  const navigate = useNavigate();
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [alertInfo, setAlertInfo] = useState({ open: false, message: '', severity: 'error' });
+const pricingPreview = {
+    'Growth': {
+        name: 'Growth',
+        price: 399000,
+        description: 'Untuk UMKM yang butuh arah strategi, mencakup analisis pasar ringan & konsultasi.',
+        features: ['Semua di paket Free', 'Analisis Pasar Ringan', 'Analisis Keuangan Dasar', '1x Konsultasi Online'],
+        packageName: 'Growth',
+        packagePrice: 399000,
+    },
+    'Pro': {
+        name: 'Pro',
+        price: 699000,
+        description: 'Untuk UMKM yang siap naik kelas, dengan strategi pemasaran digital dan dashboard interaktif.',
+        features: ['Semua di paket Growth', 'Strategi Pemasaran Digital', 'Dashboard Kustom', 'Prioritas Support & Konsultasi'],
+        packageName: 'Pro',
+        packagePrice: 699000,
+        isPopular: true,
+    },
+};
 
-  const handleFreePackage = () => {
-    if (user) {
-      navigate('/analysis');
-    } else {
-      navigate('/signin?redirect=/analysis');
-    }
-  };
+const Home = () => {
+    const navigate = useNavigate();
+    const [user, loading] = useAuthState(auth);
+    const [processingPackage, setProcessingPackage] = useState(null);
+    const [error, setError] = useState('');
 
-  const handlePaidPackage = async () => {
-    if (!user) {
-      navigate('/signin?redirect=/payment');
-      return;
-    }
-    
-    setIsProcessing(true);
+    const scrollToPricing = () => {
+        const pricingSection = document.getElementById('pricing-preview');
+        if (pricingSection) {
+            pricingSection.scrollIntoView({ behavior: 'smooth' });
+        }
+    };
 
-    try {
-      const idTokenResult = await user.getIdTokenResult();
-      if (idTokenResult.claims.admin) {
-        setAlertInfo({ open: true, message: 'Admin accounts cannot purchase plans.', severity: 'warning' });
-        setIsProcessing(false);
-        return;
-      }
+    const handlePackageSelection = async (packageName, packagePrice) => {
+        if (!user) {
+            navigate('/signin');
+            return;
+        }
 
-      const q = query(
-          collection(db, 'orders'), 
-          where('userId', '==', user.uid), 
-          where('status', 'in', ['pending_payment', 'payment_uploaded', 'payment_verified', 'file_uploaded'])
-      );
+        setProcessingPackage(packageName);
+        setError('');
 
-      const querySnapshot = await getDocs(q);
+        try {
+            const activeStatuses = ['pending_payment', 'payment_uploaded', 'payment_verified', 'file_uploaded'];
+            const q = query(
+                collection(db, 'orders'),
+                where('userId', '==', user.uid),
+                where('status', 'in', activeStatuses)
+            );
 
-      if (querySnapshot.empty) {
-        await addDoc(collection(db, 'orders'), {
-          userId: user.uid,
-          packageType: 'premium',
-          status: 'pending_payment',
-          createdAt: new Date(),
-        });
-      }
-      
-      navigate('/payment');
+            const querySnapshot = await getDocs(q);
 
-    } catch (error) {
-        console.error("Error handling paid package: ", error);
-        setAlertInfo({ open: true, message: 'Something went wrong. Please try again.', severity: 'error' });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+            if (!querySnapshot.empty) {
+                navigate('/payment');
+            } else {
+                await addDoc(collection(db, 'orders'), {
+                    userId: user.uid,
+                    packageType: packageName,
+                    packagePrice: packagePrice,
+                    status: 'pending_payment',
+                    createdAt: serverTimestamp(),
+                });
+                navigate('/payment');
+            }
+        } catch (err) {
+            console.error('Error handling package selection:', err);
+            setError('Terjadi kesalahan. Silakan coba lagi.');
+        } finally {
+            setProcessingPackage(null);
+        }
+    };
 
-  const handleAlertClose = (event, reason) => {
-    if (reason === 'clickaway') {
-      return;
-    }
-    setAlertInfo({ ...alertInfo, open: false });
-  };
+    return (
+        <Container maxWidth="lg" sx={{ mt: -3 }}>
+            {/* Hero Section */}
+            <Box textAlign="center" py={{ xs: 8, md: 12 }}>
+                <Typography variant="h2" component="h1" fontWeight="bold" gutterBottom>
+                    Insightify — Ubah Data Jadi Insight, Bisnis Jadi Berkembang
+                </Typography>
+                <Typography variant="h5" color="text.secondary" sx={{ maxWidth: '750px', mx: 'auto', mb: 3 }}>
+                    Platform analisis data berbasis AI untuk membantu UMKM mengambil keputusan berbasis data dan memenangkan persaingan.
+                </Typography>
+                <Button variant="contained" size="large" endIcon={<ArrowForward />} sx={{ mr: 2 }} onClick={() => navigate('/analysis')}>
+                    Coba Gratis
+                </Button>
+                <Button variant="outlined" size="large" onClick={scrollToPricing}>
+                    Lihat Paket
+                </Button>
+            </Box>
 
+            {/* Features Section */}
+            <Box py={{ xs: 8, md: 10 }} textAlign="center">
+                <Typography variant="h3" component="h2" fontWeight="bold" gutterBottom>Kenapa Insightify?</Typography>
+                <Grid container spacing={4} mt={4}>
+                    {featureCards.map((card) => (
+                        <Grid item xs={12} md={4} key={card.title}>
+                            <Paper elevation={0} sx={{ p: 4, bgcolor: 'background.paper', height: '100%' }}>
+                                {card.icon}
+                                <Typography variant="h5" fontWeight="600" my={2}>{card.title}</Typography>
+                                <Typography color="text.secondary">{card.description}</Typography>
+                            </Paper>
+                        </Grid>
+                    ))}
+                </Grid>
+            </Box>
 
-  return (
-    <Container maxWidth="lg" sx={{ py: { xs: 2, md: 4 } }}>
-      <Snackbar open={alertInfo.open} autoHideDuration={6000} onClose={handleAlertClose} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
-        <Alert onClose={handleAlertClose} severity={alertInfo.severity} sx={{ width: '100%' }}>
-          {alertInfo.message}
-        </Alert>
-      </Snackbar>
+            {/* Pricing Preview Section */}
+            <Box id="pricing-preview" py={{ xs: 8, md: 10 }} textAlign="center">
+                <Typography variant="h3" component="h2" fontWeight="bold" gutterBottom>Harga Fleksibel untuk Setiap Skala Bisnis</Typography>
+                 {error && <Alert severity="error" sx={{ mt: 2, justifyContent: 'center' }}>{error}</Alert>}
+                <Grid container spacing={4} mt={4} justifyContent="center">
+                    {Object.values(pricingPreview).map((pkg) => (
+                        <Grid item xs={12} md={5} key={pkg.name}>
+                            <Card sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column', position: 'relative', border: pkg.isPopular ? '2px solid' : '1px solid', borderColor: pkg.isPopular ? 'primary.main' : 'divider' }}>
+                                {pkg.isPopular && <Chip label="Populer" color="primary" sx={{ position: 'absolute', top: 16, right: 16, zIndex: 1 }} />}
+                                <CardContent sx={{ flexGrow: 1, textAlign: 'left' }}>
+                                    <Typography variant="h4" fontWeight="bold" gutterBottom>{pkg.name}</Typography>
+                                    <Typography variant="h5" color="primary.main" fontWeight="500" gutterBottom>
+                                        Rp {new Intl.NumberFormat('id-ID').format(pkg.price)} / bulan
+                                    </Typography>
+                                    <Typography color="text.secondary" mb={2}>{pkg.description}</Typography>
+                                    <Box component="ul" sx={{ listStyle: 'none', p: 0, textAlign: 'left' }}>
+                                        {pkg.features.map(feat => (
+                                             <Typography component="li" key={feat} sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                                                <CheckCircle color="success" sx={{ mr: 1.5 }} /> {feat}
+                                            </Typography>
+                                        ))}
+                                    </Box>
+                                </CardContent>
+                                <Button 
+                                    variant="contained" 
+                                    size="large" 
+                                    sx={{ mt: 2 }} 
+                                    onClick={() => handlePackageSelection(pkg.packageName, pkg.packagePrice)}
+                                    disabled={loading || !!processingPackage}
+                                >
+                                     {processingPackage === pkg.packageName ? <CircularProgress size={26} color="inherit" /> : 'Pilih Paket ' + pkg.name}
+                                </Button>
+                            </Card> 
+                        </Grid>
+                    ))}
+                </Grid>
+                 <Button variant="outlined" size="large" sx={{ mt: 4 }} onClick={() => navigate('/pricing')}>
+                    Lihat Semua Paket
+                </Button>
+            </Box>
 
-      {/* Hero Section */}
-      <Box sx={{ textAlign: 'center', my: { xs: 4, md: 8 } }}>
-        <Typography component="h1" variant="h1" sx={{ mb: 2, fontWeight: 700, fontSize: { xs: '2.5rem', sm: '3.5rem', md: '4.5rem' }, background: 'linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-          Unlock Actionable Insights
-        </Typography>
-        <Typography variant="h5" color="text.secondary" sx={{ maxWidth: '750px', mx: 'auto', mb: 4, fontSize: { xs: '1rem', sm: '1.25rem' } }}>
-          Transform raw feedback from customers, donors, or your community into clear, actionable sentiment data. A powerful tool for both for-profit and non-profit organizations.
-        </Typography>
-        <Button variant="contained" color="primary" onClick={() => document.getElementById('pricing').scrollIntoView({ behavior: 'smooth' })} sx={{ py: { xs: 1, md: 1.5 }, px: { xs: 4, md: 5 }, fontSize: { xs: '1rem', md: '1.1rem' }, boxShadow: '0 0 15px 3px rgba(66, 165, 245, 0.7)', transition: 'all 0.3s ease', '&:hover': { transform: 'scale(1.05)', boxShadow: '0 0 25px 8px rgba(66, 164, 245, 0)' } }}>
-          Get Started
-        </Button>
-      </Box>
+             {/* Final CTA */}
+            <Box textAlign="center" py={{ xs: 8, md: 12 }}>
+                <Typography variant="h3" component="h2" fontWeight="bold" gutterBottom>
+                    Siap Mengambil Keputusan yang Lebih Baik?
+                </Typography>
+                 <Typography variant="h6" color="text.secondary" sx={{ maxWidth: '650px', mx: 'auto', mb: 3 }}>
+                    Coba analisis sentimen gratis kami atau pilih paket premium untuk mendapatkan insight bisnis yang lebih dalam.
+                </Typography>
+                <Button variant="contained" size="large" endIcon={<ArrowForward />} onClick={() => navigate('/analysis')}>
+                    Mulai Coba Gratis Sekarang
+                </Button>
+            </Box>
 
-      {/* Features Section */}
-      <Grid container spacing={{ xs: 2, md: 4}} alignItems="stretch" justifyContent="center" sx={{ mb: { xs: 6, md: 10 } }}> 
-        <Grid item xs={12} sm={6} md={4}>
-          <FeatureCard icon={<Insights sx={{ fontSize: 'inherit' }} />} title="Deep Sentiment Analysis" description="Go beyond simple positive or negative. Understand the nuances in your text data with our advanced AI." />
-        </Grid>
-        <Grid item xs={12} sm={6} md={4}>
-          <FeatureCard icon={<UploadFile sx={{ fontSize: 'inherit' }} />} title="Bulk Data Processing" description="Effortlessly analyze volumes of feedback by uploading CSV or Excel files. Save time and scale your insights." />
-        </Grid>
-        <Grid item xs={12} sm={6} md={4}>
-          <FeatureCard icon={<AutoAwesome sx={{ fontSize: 'inherit' }} />} title="AI-Powered Visualizations" description="Instantly visualize sentiment trends and keyword frequencies. Make data-driven decisions with confidence." />
-        </Grid>
-      </Grid>
-
-      {/* Pricing Section */}
-      <Box id="pricing" sx={{ my: { xs: 6, md: 10 } }}>
-        <Typography variant="h3" sx={{ textAlign: 'center', mb: 4, fontWeight: 600, fontSize: { xs: '1.8rem', md: '3rem' } }}>
-          Choose Your Plan
-        </Typography>
-        <Grid container spacing={4} justifyContent="center" alignItems="stretch">
-            <Grid item xs={12} md={5}>
-                <PricingCard 
-                    title="Free"
-                    price="Rp 0"
-                    features={['Single text analysis', 'Up to 100 rows of file analysis', 'Community support']}
-                    buttonText="Start for Free"
-                    buttonVariant="outlined"
-                    onButtonClick={handleFreePackage}
-                />
-            </Grid>
-            <Grid item xs={12} md={5}>
-                <PricingCard 
-                    title="Premium"
-                    price="Rp 150.000"
-                    features={['Single text analysis', 'Up to 50,000 rows of file analysis', 'Priority email support', 'In-depth reporting features']}
-                    buttonText="Choose Premium"
-                    buttonVariant="contained"
-                    onButtonClick={handlePaidPackage}
-                    loading={isProcessing}
-                />
-            </Grid>
-        </Grid>
-      </Box>
-
-      {/* FAQ Section */}
-      <Box sx={{ maxWidth: '800px', mx: 'auto', my: { xs: 6, md: 10 } }}>
-        <Typography variant="h3" sx={{ textAlign: 'center', mb: 4, fontWeight: 600, fontSize: { xs: '1.8rem', md: '3rem' } }}>
-          Frequently Asked Questions
-        </Typography>
-        {faqs.map((faq, index) => (
-          <Accordion key={index} sx={{ bgcolor: 'background.paper', backgroundImage: 'none', mb: 1.5, '&:before': { display: 'none' } }}>
-            <AccordionSummary expandIcon={<ExpandMore />}>
-              <Typography variant="h6" sx={{ fontSize: { xs: '1rem', md: '1.25rem'} }}>{faq.question}</Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Typography color="text.secondary">{faq.answer}</Typography>
-            </AccordionDetails>
-          </Accordion>
-        ))}
-      </Box>
-    </Container>
-  );
-}
+        </Container>
+    );
+};
 
 export default Home;
