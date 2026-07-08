@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { useNavigate } from 'react-router-dom';
 import {
     Box,
@@ -6,8 +6,9 @@ import {
     Button,
     Container,
     Grid,
+    Card,
     Paper,
-    Chip
+    Icon
 } from '@mui/material';
 import {
     BarChart, 
@@ -17,271 +18,206 @@ import {
     CheckCircle, 
     TrendingUp, 
     Group, 
-    Verified,
-    CancelOutlined,
-    ArrowForward,
-    AutoAwesome
+    Verified
 } from '@mui/icons-material';
 
 // --- Data --- 
 const featureCards = [
-    { icon: <Psychology/>, title: "Analisis Sentimen Otomatis", description: "Pahami suara pelanggan dari ulasan & feedback secara otomatis dengan NLP." },
+    { icon: <Psychology/>, title: "Analisis Sentimen Otomatis", description: "Pahami suara pelanggan dari ulasan & feedback secara otomatis." },
     { icon: <BarChart/>, title: "Insight Pasar & Kompetitor", description: "Dapatkan gambaran kondisi pasar dan posisi kompetitor untuk peluang baru." },
     { icon: <MonetizationOn/>, title: "Analisis Keuangan Dasar", description: "Ukur kesehatan bisnis dengan metrik penting seperti margin keuntungan dan BEP." },
     { icon: <Lightbulb/>, title: "Rekomendasi Strategi", description: "Terima saran dan rekomendasi konkret yang bisa langsung ditindaklanjuti." }
 ];
 
 const upgradeReasons = [
-    { icon: <TrendingUp/>, title: "Analisis Lebih Dalam", description: "Laporan kustom khusus untuk metrik spesifik bisnis Anda, bukan data umum." },
-    { icon: <Group/>, title: "Konsultasi Tim Ahli", description: "Diskusikan hasil analisis dan dapatkan bimbingan strategi langsung." },
-    { icon: <Verified/>, title: "Rekomendasi Actionable", description: "Langkah-langkah konkret berbasis data yang siap untuk Anda eksekusi." }
+    { icon: <TrendingUp/>, title: "Analisis Lebih Dalam", description: "Dapatkan laporan yang disesuaikan khusus untuk bisnis Anda, bukan hanya data umum." },
+    { icon: <Group/>, title: "Konsultasi Tim Ahli", description: "Diskusikan hasil analisis dan dapatkan bimbingan strategi langsung dari para analis kami." },
+    { icon: <Verified/>, title: "Rekomendasi Actionable", description: "Bukan hanya data, kami memberikan langkah-langkah konkret yang bisa Anda terapkan." }
 ];
 
-// --- Reusable Components --- 
+// --- Komponen Styling --- 
+
 const Section = ({ children, sx = {} }) => (
-    <Box sx={{ py: { xs: 8, md: 12 }, position: 'relative', zIndex: 1, ...sx }}>
+    <Box sx={{ py: { xs: 8, md: 12 }, overflow: 'hidden', position: 'relative', ...sx }}>
         <Container maxWidth="lg">
             {children}
         </Container>
     </Box>
 );
 
-const GlassCard = ({ children, sx = {}, ...props }) => (
+const AuroraCard = ({ children, ...props }) => (
     <Paper sx={{
-        p: { xs: 3, md: 4 },
+        p: {xs: 2, md: 4},
         height: '100%',
-        backgroundColor: 'rgba(17, 24, 39, 0.6)', // Slate dark
-        backdropFilter: 'blur(12px)',
-        borderRadius: '20px',
-        border: '1px solid rgba(255, 255, 255, 0.05)',
-        transition: 'all 0.3s ease-in-out',
-        '&:hover': {
-            transform: 'translateY(-5px)',
-            backgroundColor: 'rgba(31, 41, 55, 0.7)',
-            borderColor: 'rgba(59, 130, 246, 0.3)', // Tech blue border on hover
-            boxShadow: '0 10px 40px -10px rgba(59, 130, 246, 0.15)',
+        textAlign: 'center',
+        position: 'relative',
+        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+        borderRadius: '16px',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        transition: 'all 0.3s ease',
+        overflow: 'hidden',
+        '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: 0, left: 0, right: 0, bottom: 0,
+            borderRadius: '16px',
+            padding: '1px',
+            background: 'linear-gradient(135deg, rgba(0, 255, 163, 0.3), rgba(128, 0, 128, 0.3))',
+            mask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+            WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+            WebkitMaskComposite: 'xor',
+            maskComposite: 'exclude',
+            opacity: 0.8,
         },
-        ...sx
-    }} {...props}>
+        '&:hover': {
+            transform: 'translateY(-8px)',
+            backgroundColor: 'rgba(255, 255, 255, 0.08)',
+            '&::before': {
+                background: 'linear-gradient(135deg, #00FFA3, #DA70D6)',
+                animation: 'aurora-spin 4s linear infinite',
+            }
+        },
+        '@keyframes aurora-spin': {
+            '0%': { transform: 'rotate(0deg)' },
+            '100%': { transform: 'rotate(360deg)' },
+        },
+        ...props
+    }}>
         {children}
     </Paper>
 );
 
-// --- Main Page Component ---
+
 const Home = () => {
     const navigate = useNavigate();
 
     return (
         <Box sx={{
-            bgcolor: '#030712', // Very dark background (Enterprise AI look)
-            color: '#F9FAFB',
-            fontFamily: '"Inter", "Plus Jakarta Sans", "Roboto", sans-serif',
-            overflowX: 'hidden',
-            width: '100%',
-            position: 'relative',
+            bgcolor: '#0D0C22',
+            color: '#FFFFFF',
+            backgroundImage: 'radial-gradient(at 20% 20%, hsla(283,74%,25%,0.3) 0px, transparent 50%), radial-gradient(at 80% 80%, hsla(163,100%,40%,0.2) 0px, transparent 50%)',
         }}>
-            {/* Background Glow Effects */}
-            <Box sx={{
-                position: 'absolute', top: '-10%', left: '50%', transform: 'translateX(-50%)',
-                width: '80vw', height: '600px',
-                background: 'radial-gradient(circle, rgba(37, 99, 235, 0.15) 0%, rgba(3, 7, 18, 0) 70%)',
-                zIndex: 0, pointerEvents: 'none'
-            }} />
 
-            {/* --- HERO SECTION --- */}
-            <Section sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', pt: { xs: 12, md: 0 } }}>
-                <Box sx={{ textAlign: 'center', maxWidth: '850px', mx: 'auto' }}>
-                    <Chip 
-                        icon={<AutoAwesome style={{ color: '#60A5FA', fontSize: 16 }} />} 
-                        label="Platform Analisis AI B2B untuk UMKM" 
-                        sx={{ 
-                            bgcolor: 'rgba(59, 130, 246, 0.1)', color: '#93C5FD', 
-                            border: '1px solid rgba(59, 130, 246, 0.2)', mb: 4, px: 1, py: 2.5, borderRadius: '100px', fontWeight: 600 
-                        }} 
-                    />
-                    <Typography variant="h1" sx={{ fontWeight: 800, fontSize: { xs: '2.5rem', sm: '3.8rem', md: '5rem' }, lineHeight: 1.1, mb: 3, letterSpacing: '-0.02em' }}>
-                        Ubah Data Mentah <br/>
-                        <Box component="span" sx={{ 
-                            background: 'linear-gradient(to right, #3B82F6, #10B981)', 
-                            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' 
-                        }}>
-                            Jadi Keputusan Cerdas
-                        </Box>
-                    </Typography>
-                    <Typography variant="h6" sx={{ color: '#9CA3AF', fontWeight: 400, mb: 6, lineHeight: 1.8, fontSize: { xs: '1rem', md: '1.2rem' }, maxWidth: '700px', mx: 'auto' }}>
-                        Tinggalkan asumsi. Insightify membantu UMKM membaca kondisi pasar, memantau kesehatan bisnis, dan mengolah feedback pelanggan menjadi strategi jitu dengan bantuan AI.
-                    </Typography>
-                    
-                    <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center' }}>
-                        <Button 
-                            variant="contained" size="large" onClick={() => navigate('/analysis')}
-                            endIcon={<ArrowForward />}
-                            sx={{ 
-                                bgcolor: '#3B82F6', color: '#fff', fontWeight: 600, px: 4, py: 1.8, borderRadius: '12px', textTransform: 'none', fontSize: '1.05rem',
-                                '&:hover': { bgcolor: '#2563EB', boxShadow: '0 8px 25px rgba(59, 130, 246, 0.4)' }
-                            }}
-                        >
-                            Mulai Analisis Gratis
-                        </Button>
-                        <Button 
-                            variant="outlined" size="large" onClick={() => navigate('/pricing')}
-                            sx={{ 
-                                borderColor: '#374151', color: '#E5E7EB', fontWeight: 600, px: 4, py: 1.8, borderRadius: '12px', textTransform: 'none', fontSize: '1.05rem',
-                                '&:hover': { borderColor: '#6B7280', bgcolor: 'rgba(255,255,255,0.02)' }
-                            }}
-                        >
-                            Lihat Paket Bisnis
-                        </Button>
-                    </Box>
+            {/* Hero Section */}
+            <Container maxWidth="lg" sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center', py: 10 }}>
+                 <Typography 
+                    variant="h1"
+                    sx={{
+                        fontWeight: 800,
+                        fontSize: { xs: '2.2rem', sm: '3.5rem', md: '4.5rem' },
+                        textShadow: '0px 0px 15px rgba(255, 255, 255, 0.3)',
+                        letterSpacing: '-1.5px',
+                        mb: 2,
+                    }}
+                >
+                    Ubah Data Jadi Keputusan
+                </Typography>
+                <Typography 
+                    variant="h1"
+                    sx={{
+                        fontWeight: 800,
+                        fontSize: { xs: '2.5rem', sm: '4rem', md: '5rem' },
+                        letterSpacing: '-1.5px',
+                        mb: 4,
+                        background: 'linear-gradient(90deg, #00FFA3, #00D1FF)',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        textShadow: '0 0 40px rgba(0, 255, 163, 0.7)',
+                    }}
+                >
+                    UMKM Jadi Naik Kelas
+                </Typography>
+                <Typography variant="h6" color="#B0B0B0" sx={{ my: 3, mx: 'auto', maxWidth: '750px', lineHeight: 1.7 }}>
+                    Insightify membantu Anda memahami feedback pelanggan, kondisi pasar, dan kesehatan bisnis secara objektif menggunakan kekuatan AI. Ambil keputusan lebih cerdas, bukan berdasarkan asumsi.
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center', mt: 5 }}>
+                    <Button variant="contained" size="large" onClick={() => navigate('/analysis')} sx={{ bgcolor: '#fff', color: '#0D0C22', fontWeight: 'bold', borderRadius: '50px', px: 5, py: 1.5, '&:hover': { bgcolor: '#eee' } }}>Coba Gratis</Button>
+                    <Button variant="outlined" size="large" onClick={() => navigate('/pricing')} sx={{ borderColor: '#00FFA3', color: '#00FFA3', fontWeight: 'bold', borderRadius: '50px', px: 5, py: 1.5, '&:hover': { bgcolor: 'rgba(0, 255, 163, 0.1)' } }}>Lihat Paket Bisnis</Button>
                 </Box>
-            </Section>
+            </Container>
 
-            {/* --- PROBLEM VS SOLUTION SECTION --- */}
-            <Section sx={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                <Grid container spacing={4} alignItems="stretch">
-                    {/* The Old Way (Problem) */}
-                    <Grid item xs={12} md={6}>
-                        <GlassCard sx={{ bgcolor: 'rgba(239, 68, 68, 0.02)', border: '1px solid rgba(239, 68, 68, 0.1)', '&:hover': { transform: 'none' } }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-                                <Box sx={{ p: 1, borderRadius: '8px', bgcolor: 'rgba(239, 68, 68, 0.1)' }}>
-                                    <CancelOutlined sx={{ color: '#EF4444' }} />
-                                </Box>
-                                <Typography variant="h5" fontWeight="700" color="#F3F4F6">Mengandalkan Intuisi</Typography>
-                            </Box>
-                            <Typography color="#9CA3AF" lineHeight={1.8}>
-                                Banyak UMKM terjebak dalam tebak-tebakan. Sulitnya membaca ribuan ulasan pelanggan, buta terhadap pergerakan kompetitor, dan tidak paham metrik keuangan membuat bisnis stagnan dan rawan kerugian.
-                            </Typography>
-                        </GlassCard>
+            {/* Problem -> Solution Section */}
+            <Section>
+                <Grid container spacing={6} alignItems="center" justifyContent="center">
+                    <Grid item xs={12} md={5}>
+                        <Typography variant="h3" fontWeight="bold">Masalah: Intuisi vs Data</Typography>
+                        <Typography color="#B0B0B0" mt={2} lineHeight={1.8}>UMKM seringkali membuat keputusan bisnis berdasarkan firasat karena kesulitan mengolah ribuan feedback pelanggan, membaca arah pasar, dan memantau kesehatan finansial secara objektif.</Typography>
                     </Grid>
-                    
-                    {/* The New Way (Solution) */}
-                    <Grid item xs={12} md={6}>
-                        <GlassCard sx={{ bgcolor: 'rgba(16, 185, 129, 0.03)', border: '1px solid rgba(16, 185, 129, 0.2)', boxShadow: '0 10px 30px rgba(16,185,129,0.05)', '&:hover': { transform: 'none' } }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-                                <Box sx={{ p: 1, borderRadius: '8px', bgcolor: 'rgba(16, 185, 129, 0.1)' }}>
-                                    <CheckCircle sx={{ color: '#10B981' }} />
-                                </Box>
-                                <Typography variant="h5" fontWeight="700" color="#F3F4F6">Pendekatan Data-Driven</Typography>
-                            </Box>
-                            <Typography color="#D1D5DB" lineHeight={1.8}>
-                                Bersama <strong style={{color: '#10B981'}}>Insightify</strong>, ubah lautan data menjadi peta jalan yang jelas. AI kami mengekstrak insight pasar, menganalisis sentimen, dan memberikan rekomendasi taktis agar bisnis Anda melesat dengan presisi.
-                            </Typography>
-                        </GlassCard>
+                    <Grid item xs={12} md={5}>
+                         <Paper sx={{ p: 4, background: 'linear-gradient(145deg, rgba(0,255,163,0.1), rgba(0,209,255,0.1))', borderRadius: 4, border: '1px solid rgba(0,255,163,0.3)' }}>
+                             <Typography variant="h4" fontWeight="bold">Solusi: <span style={{ color: '#00FFA3' }}>Insightify</span></Typography>
+                             <Typography color="#B0B0B0" mt={2} lineHeight={1.8}>Kami mengubah data mentah Anda menjadi insight jernih dan rekomendasi strategis. Buat keputusan berbasis bukti, bukan lagi sekadar asumsi, dengan kekuatan AI.</Typography>
+                        </Paper>
                     </Grid>
                 </Grid>
             </Section>
 
-            {/* --- FEATURES SECTION --- */}
-<Section>
-    <Box textAlign="center" mb={8}>
-        <Typography variant="h6" color="#3B82F6" fontWeight="700" gutterBottom>KAPABILITAS SISTEM</Typography>
-        <Typography variant="h2" fontWeight="800" sx={{ fontSize: { xs: '2rem', md: '2.8rem' } }}>
-            Kenapa Insightify?
-        </Typography>
-    </Box>
-
-    <Grid container spacing={3} justifyContent="center">
-        {featureCards.map((card, index) => (
-            <Grid item xs={12} md={6} key={index}>
-                <GlassCard sx={{ display: 'flex', flexDirection: 'column', p: { xs: 3, md: 5 }, height: '100%' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-                        <Box sx={{ 
-                            width: 54, height: 54, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            borderRadius: '14px', background: 'linear-gradient(135deg, #1E3A8A, #3B82F6)', color: '#fff',
-                            boxShadow: '0 4px 15px rgba(59, 130, 246, 0.3)'
-                        }}>
-                            {card.icon}
-                        </Box>
-                        <Typography variant="h6" fontWeight="700" sx={{ fontSize: '1.2rem' }}>
-                            {card.title}
-                        </Typography>
-                    </Box>
-                    <Typography color="#9CA3AF" lineHeight={1.7} sx={{ flexGrow: 1 }}>
-                        {card.description}
-                    </Typography>
-                </GlassCard>
-            </Grid>
-        ))}
-    </Grid>
-</Section>
-
-{/* --- UPGRADE / PRICING SECTION --- */}
-<Section sx={{ mt: 5 }}>
-    <Box sx={{ 
-        bgcolor: '#111827', borderRadius: '32px', p: { xs: 4, md: 8 }, 
-        border: '1px solid rgba(255,255,255,0.05)', position: 'relative', overflow: 'hidden',
-        maxWidth: '1100px', mx: 'auto'
-    }}>
-        {/* Background abstract element for the dark box */}
-        <Box sx={{ position: 'absolute', right: 0, top: 0, width: '40%', height: '100%', background: 'radial-gradient(circle, rgba(16, 185, 129, 0.05) 0%, transparent 70%)', pointerEvents: 'none' }} />
-
-        <Box textAlign="center" mb={6} position="relative" zIndex={1}>
-            <Typography variant="h2" fontWeight="800" sx={{ fontSize: { xs: '1.8rem', md: '2.5rem' }, mb: 2 }}>
-                Akselerasi Pertumbuhan Bisnis Anda
-            </Typography>
-            <Typography color="#9CA3AF" sx={{ fontSize: '1.1rem', maxWidth: '700px', mx: 'auto' }}>
-                Versi gratis adalah pijakan awal. <strong style={{ color: '#fff' }}>Insightify Premium</strong> adalah tim strategi pribadi Anda yang siap menganalisis 24/7.
-            </Typography>
-        </Box>
-        
-        <Grid container spacing={4} justifyContent="center" position="relative" zIndex={1}>
-            {upgradeReasons.map((reason, index) => (
-                <Grid item xs={12} sm={4} key={index}>
-                    <Box sx={{ p: 2, textAlign: 'center' }}>
-                        <Box sx={{ color: '#10B981', mb: 2, display: 'flex', justifyContent: 'center', '& > svg': { fontSize: 40 } }}>
-                            {reason.icon}
-                        </Box>
-                        <Typography variant="h6" fontWeight="700" mb={1} color="#F3F4F6">
-                            {reason.title}
-                        </Typography>
-                        <Typography color="#9CA3AF" variant="body2" lineHeight={1.6}>
-                            {reason.description}
-                        </Typography>
-                    </Box>
-                </Grid>
-            ))}
-        </Grid>
-
-        <Box sx={{ textAlign: 'center', mt: 6, position: 'relative', zIndex: 1 }}>
-            <Button 
-                variant="outlined" size="large" onClick={() => navigate('/pricing')} 
-                sx={{ 
-                    borderColor: '#10B981', color: '#10B981', fontWeight: 600, borderRadius: '12px', px: 6, py: 1.5, textTransform: 'none',
-                    '&:hover': { bgcolor: 'rgba(16, 185, 129, 0.1)', borderColor: '#10B981' } 
-                }}
-            >
-                Bandingkan Fitur Premium
-            </Button>
-        </Box>
-    </Box>
-</Section>
-
-            {/* --- FINAL CTA SECTION --- */}
-            <Section sx={{ pb: { xs: 12, md: 16 } }}>
-                <Box sx={{ 
-                    textAlign: 'center', borderRadius: '32px', p: { xs: 5, md: 10 },
-                    background: 'linear-gradient(135deg, #2563EB, #10B981)',
-                    position: 'relative', overflow: 'hidden',
-                    boxShadow: '0 20px 50px rgba(37, 99, 235, 0.2)'
+            {/* Kenapa Insightify? Section */}
+            <Section>
+                <Typography variant="h2" component="h2" fontWeight="bold" textAlign="center" gutterBottom>Kenapa Insightify?</Typography>
+                <Box sx={{
+                    display: 'grid',
+                    gridTemplateColumns: {
+                        xs: '1fr',
+                        md: '1fr 1fr'
+                    },
+                    gap: 3,
+                    mt: 6,
                 }}>
-                    <Typography variant="h2" fontWeight="800" color="#fff" sx={{ fontSize: { xs: '2rem', md: '3.2rem' }, mb: 2 }}>
-                        Siap Mendominasi Pasar?
-                    </Typography>
-                    <Typography variant="h6" sx={{ color: 'rgba(255,255,255,0.9)', mb: 5, fontWeight: 400, maxWidth: '600px', mx: 'auto' }}>
-                        Jangan biarkan kompetitor mencuri pelanggan Anda. Mulai analisis pertama Anda hari ini, 100% gratis.
-                    </Typography>
-                    
-                    <Button 
-                        variant="contained" size="large" onClick={() => navigate('/analysis')} 
-                        sx={{ 
-                            bgcolor: '#030712', color: '#fff', fontWeight: 700, borderRadius: '12px', px: 5, py: 2, textTransform: 'none', fontSize: '1.1rem',
-                            '&:hover': { bgcolor: '#111827', transform: 'translateY(-2px)' },
-                            boxShadow: '0 10px 20px rgba(0,0,0,0.2)'
-                        }}
-                    >
-                        Mulai Gratis Sekarang
-                    </Button>
+                    {featureCards.map((card) => (
+                        <AuroraCard key={card.title}>
+                            <Icon sx={{ color: '#00FFA3', fontSize: {xs: 32, md: 42}, mb: 2 }}>{card.icon}</Icon>
+                            <Typography variant="h6" fontWeight="bold" my={1} sx={{fontSize: {xs: '1rem', md: '1.25rem'}}}>{card.title}</Typography>
+                            <Typography color="#B0B0B0" variant="body2">{card.description}</Typography>
+                        </AuroraCard>
+                    ))}
                 </Box>
+            </Section>
+
+            
+            {/* Upgrade Section */}
+            <Section sx={{ bgcolor: '#100F29' }}>
+                 <Typography variant="h2" component="h2" fontWeight="bold" textAlign="center">Upgrade untuk Akselerasi Bisnis</Typography>
+                <Typography variant="h6" color="#B0B0B0" textAlign="center" sx={{ my: 3, maxWidth: '800px', mx: 'auto' }}>Versi gratis adalah alat. Versi berbayar adalah partner strategis Anda.</Typography>
+                
+                <Grid container spacing={4} justifyContent="center" sx={{ mt: 4 }}>
+                    {upgradeReasons.slice(0, 2).map((reason) => (
+                        <Grid item xs={12} sm={6} md={5} key={reason.title}>
+                            <Box sx={{ textAlign: 'center', p: 3 }}>
+                                <Icon sx={{ color: '#00FFA3', fontSize: 36, mb: 2 }}>{reason.icon}</Icon>
+                                <Typography variant="h5" fontWeight="bold" gutterBottom>{reason.title}</Typography>
+                                <Typography color="#B0B0B0">{reason.description}</Typography>
+                            </Box>
+                        </Grid>
+                    ))}
+                </Grid>
+                <Grid container spacing={4} justifyContent="center" sx={{ mt: { xs: 0, md: 4 } }}>
+                     {upgradeReasons.slice(2, 3).map((reason) => (
+                        <Grid item xs={12} sm={8} md={5} key={reason.title}>
+                            <Box sx={{ textAlign: 'center', p: 3 }}>
+                                <Icon sx={{ color: '#00FFA3', fontSize: 36, mb: 2 }}>{reason.icon}</Icon>
+                                <Typography variant="h5" fontWeight="bold" gutterBottom>{reason.title}</Typography>
+                                <Typography color="#B0B0B0">{reason.description}</Typography>
+                            </Box>
+                        </Grid>
+                    ))}
+                </Grid>
+
+                <Box sx={{ textAlign: 'center', mt: 6 }}>
+                    <Button variant="contained" size="large" onClick={() => navigate('/pricing')} sx={{ bgcolor: '#00FFA3', color: '#0D0C22', fontWeight: 'bold', borderRadius: '50px', px: 6, py: 1.5, '&:hover': { bgcolor: '#2CFFB5' } }}>Lihat Semua Paket</Button>
+                </Box>
+            </Section>
+
+            {/* Final CTA */}
+            <Section>
+                <Paper sx={{ p: { xs: 4, md: 8 }, textAlign: 'center', borderRadius: 4, background: 'linear-gradient(90deg, #00FFA3, #00D1FF)', maxWidth: '900px', mx: 'auto' }}>
+                    <Typography variant="h2" component="h2" fontWeight="bold" gutterBottom color="#0D0C22">Siap Naik Kelas?</Typography>
+                    <Typography variant="h6" sx={{ my: 3, color: '#0D0C22', opacity: 0.8 }}>Mulai analisis gratis pertama Anda atau buka potensi penuh bisnis Anda dengan paket premium kami.</Typography>
+                    <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
+                         <Button variant="contained" size="large" onClick={() => navigate('/analysis')} sx={{ bgcolor: '#fff', color: '#0D0C22', fontWeight:'bold', borderRadius:'50px', px:5, py:1.5, '&:hover':{bgcolor:'#eee'} }}>Coba Gratis Sekarang</Button>
+                        <Button variant="outlined" size="large" onClick={() => navigate('/pricing')} sx={{ borderColor: '#0D0C22', color: '#0D0C22', fontWeight:'bold', borderRadius:'50px', px:5, py:1.5, '&:hover': { backgroundColor: 'rgba(0,0,0,0.08)' } }}>Lihat Paket Bisnis</Button>
+                    </Box>
+                </Paper>
             </Section>
         </Box>
     );
