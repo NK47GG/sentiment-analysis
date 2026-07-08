@@ -1,4 +1,3 @@
-
 import { useNavigate } from 'react-router-dom';
 import {
     Box,
@@ -6,7 +5,6 @@ import {
     Button,
     Container,
     Grid,
-    Card,
     Paper,
     Icon
 } from '@mui/material';
@@ -15,7 +13,6 @@ import {
     Lightbulb, 
     MonetizationOn, 
     Psychology, 
-    CheckCircle, 
     TrendingUp, 
     Group, 
     Verified
@@ -51,42 +48,23 @@ const AuroraCard = ({ children, ...props }) => (
         height: '100%',
         textAlign: 'center',
         position: 'relative',
-        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+        backgroundColor: 'rgba(255, 255, 255, 0.03)',
         borderRadius: '16px',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
-        transition: 'all 0.3s ease',
+        border: '1px solid rgba(255, 255, 255, 0.08)',
+        transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.1)',
         overflow: 'hidden',
-        '&::before': {
-            content: '""',
-            position: 'absolute',
-            top: 0, left: 0, right: 0, bottom: 0,
-            borderRadius: '16px',
-            padding: '1px',
-            background: 'linear-gradient(135deg, rgba(0, 255, 163, 0.3), rgba(128, 0, 128, 0.3))',
-            mask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-            WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-            WebkitMaskComposite: 'xor',
-            maskComposite: 'exclude',
-            opacity: 0.8,
-        },
+        backdropFilter: 'blur(10px)',
         '&:hover': {
-            transform: 'translateY(-8px)',
-            backgroundColor: 'rgba(255, 255, 255, 0.08)',
-            '&::before': {
-                background: 'linear-gradient(135deg, #00FFA3, #DA70D6)',
-                animation: 'aurora-spin 4s linear infinite',
-            }
-        },
-        '@keyframes aurora-spin': {
-            '0%': { transform: 'rotate(0deg)' },
-            '100%': { transform: 'rotate(360deg)' },
+            transform: 'translateY(-6px)',
+            backgroundColor: 'rgba(255, 255, 255, 0.06)',
+            borderColor: 'rgba(0, 255, 163, 0.4)',
+            boxShadow: '0 12px 32px -12px rgba(0, 255, 163, 0.25)',
         },
         ...props
     }}>
         {children}
     </Paper>
 );
-
 
 const Home = () => {
     const navigate = useNavigate();
@@ -174,7 +152,6 @@ const Home = () => {
                 </Box>
             </Section>
 
-            
             {/* Upgrade Section */}
             <Section sx={{ bgcolor: '#100F29' }}>
                  <Typography variant="h2" component="h2" fontWeight="bold" textAlign="center">Upgrade untuk Akselerasi Bisnis</Typography>
