@@ -1,213 +1,135 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '../firebase';
-import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
-import { Link, useNavigate } from 'react-router-dom';
 import { 
-    Container, 
-    Typography, 
-    CircularProgress, 
-    Alert,
-    AlertTitle, 
-    TableContainer, 
-    Table, 
-    TableHead, 
-    TableRow, 
-    TableCell, 
-    TableBody, 
-    Paper, 
-    Box, 
-    Chip,
-    Button,
-    Stack
+  Container, 
+  Typography, 
+  Paper, 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableContainer, 
+  TableHead, 
+  TableRow,
+  Box,
+  CircularProgress,
+  Alert
 } from '@mui/material';
 
-const packageMasterList = {
-    'Audit Awal': { price: 249000 },
-    'Growth': { price: 399000 },
-    'Pro': { price: 699000 },
-    'Enterprise': { price: -1 }, // Custom price
-    'Free': { price: 0 },
-};
-
 const History = () => {
-    const navigate = useNavigate();
-    const [user, loadingAuth] = useAuthState(auth);
-    const [orders, setOrders] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const [updating, setUpdating] = useState({});
-    const [showDoneConfirmation, setShowDoneConfirmation] = useState(false);
+  console.log("LOG: History Component is rendering...");
 
-    useEffect(() => {
-        const fetchOrders = async () => {
-            if (!user) {
-                setLoading(false);
-                return;
-            }
-            try {
-                const q = query(
-                    collection(db, 'orders'), 
-                    where('userId', '==', user.uid)
-                );
-                const querySnapshot = await getDocs(q);
-                const userOrders = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+  const [user, loadingAuth] = useAuthState(auth);
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-                userOrders.sort((a, b) => {
-                    const dateA = a.createdAt?.seconds || 0;
-                    const dateB = b.createdAt?.seconds || 0;
-                    return dateB - dateA;
-                });
+  useEffect(() => {
+    const fetchOrders = async () => {
+      console.log('--- DEBUG START: fetchOrders ---');
+      console.log('Auth Loading Status:', loadingAuth);
+      console.log('Current User Object:', user);
+      console.log('Current User UID:', user?.uid);
 
-                setOrders(userOrders);
-            } catch (err) {
-                console.error("Error fetching orders: ", err);
-                setError('Failed to retrieve order history.');
-            } finally {
-                setLoading(false);
-            }
-        };
+      if (loadingAuth) {
+        console.log('LOG: Menunggu proses autentikasi selesai...');
+        return;
+      }
 
-        if (!loadingAuth) {
-            fetchOrders();
-        }
-    }, [user, loadingAuth]);
+      if (!user) {
+        console.log('LOG: Tidak ada user terdeteksi, membatalkan query.');
+        setLoading(false);
+        return;
+      }
 
-    const handleMarkAsDone = async (orderId) => {
-        setUpdating(prev => ({...prev, [orderId]: true}));
-        try {
-            const orderRef = doc(db, "orders", orderId);
-            await updateDoc(orderRef, { status: "done" });
-            setOrders(prevOrders => 
-                prevOrders.map(order => 
-                    order.id === orderId ? { ...order, status: 'done' } : order
-                )
-            );
-            setShowDoneConfirmation(true); // Show confirmation alert
-        } catch (err) {
-            console.error("Failed to update order: ", err);
-            setError("Failed to confirm order. Please try again.");
-        } finally {
-            setUpdating(prev => ({...prev, [orderId]: false}));
-        }
+      try {
+        console.log('LOG: Mencoba fetch ke Firestore untuk UID:', user.uid);
+
+        const ordersRef = collection(db, 'orders');
+        const q = query(
+          ordersRef,
+          where('userId', '==', user.uid),
+          orderBy('createdAt', 'desc')
+        );
+
+        const querySnapshot = await getDocs(q);
+        console.log('LOG: Query berhasil! Jumlah dokumen:', querySnapshot.size);
+
+        const userOrders = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+
+        setOrders(userOrders);
+      } catch (err) {
+        console.error("LOG ERROR: Terjadi kegagalan saat fetch data:", err);
+        console.error("LOG ERROR CODE:", err.code);
+        console.error("LOG ERROR MSG:", err.message);
+        setError("Failed to retrieve order history: " + err.message);
+      } finally {
+        setLoading(false);
+        console.log('--- DEBUG END: fetchOrders ---');
+      }
     };
 
-     const renderPrice = (order) => {
-        if (!order) return 'N/A';
+    fetchOrders();
+  }, [user, loadingAuth]);
 
-        let price = order.packagePrice;
-
-        if (typeof price !== 'number') {
-            const matchedPackage = packageMasterList[order.packageType];
-            if (matchedPackage) {
-                price = matchedPackage.price;
-            }
-        }
-
-        if (typeof price === 'number') {
-            if (price < 0) return 'Custom';
-            if (price === 0) return 'Gratis';
-            return `Rp ${new Intl.NumberFormat('id-ID').format(price)}`;
-        }
-
-        return 'N/A';
-    };
-
-    const getStatusChipColor = (status) => {
-        switch (status) {
-            case 'completed': return 'info';
-            case 'done': return 'success';
-            case 'pending_payment':
-            case 'payment_uploaded': return 'warning';
-            case 'payment_verified':
-            case 'file_uploaded': return 'primary';
-            default: return 'default';
-        }
-    };
-
-    if (loading || loadingAuth) {
-        return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
-    }
-
-    if (error) {
-        return <Container><Alert severity="error" sx={{mb: 2}}>{error}</Alert></Container>;
-    }
-
-    if (!user) {
-        return <Container><Alert severity="warning">Please log in to see your history.</Alert></Container>;
-    }
-
+  if (loading || loadingAuth) {
     return (
-        <Container maxWidth="lg" sx={{ mt: 4 }}>
-            <Typography variant="h4" gutterBottom>Order History</Typography>
-            
-            {showDoneConfirmation && (
-                <Alert 
-                    severity="success" 
-                    sx={{ mb: 3 }} 
-                    action={
-                        <Button color="inherit" size="small" onClick={() => navigate('/')}>
-                            Pesan Lagi
-                        </Button>
-                    }
-                >
-                    <AlertTitle>Konfirmasi Selesai</AlertTitle>
-                    Pesanan telah ditandai selesai. Anda sekarang dapat melakukan pemesanan baru dari Halaman Utama.
-                </Alert>
-            )}
-
-            {orders.length === 0 ? (
-                <Typography>You have no past orders.</Typography>
-            ) : (
-                <TableContainer component={Paper}>
-                    <Table sx={{ minWidth: 650 }} aria-label="order history table">
-                        <TableHead>
-                            <TableRow>
-                                <TableCell>Order ID</TableCell>
-                                <TableCell>Date</TableCell>
-                                <TableCell>Package</TableCell>
-                                <TableCell>Status</TableCell>
-                                <TableCell>Total</TableCell>
-                                <TableCell align="center">Aksi</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {orders.map((order) => (
-                                <TableRow key={order.id}>
-                                    <TableCell component="th" scope="row">{order.id}</TableCell>
-                                    <TableCell>{order.createdAt ? new Date(order.createdAt.seconds * 1000).toLocaleDateString() : 'N/A'}</TableCell>
-                                    <TableCell>{order.packageType}</TableCell>
-                                    <TableCell>
-                                        <Chip label={order.status.replace(/_/g, ' ')} color={getStatusChipColor(order.status)} variant="outlined" size="small" sx={{textTransform: 'capitalize'}} />
-                                    </TableCell>
-                                    <TableCell>{renderPrice(order)}</TableCell>
-                                    <TableCell align="center">
-                                        {order.status === 'completed' && (
-                                            <Stack direction="row" spacing={1} justifyContent="center">
-                                                <Button size="small" variant="outlined" component="a" href={order.resultFileUrl} target="_blank" rel="noopener noreferrer">Download Hasil</Button>
-                                                <Button size="small" variant="contained" onClick={() => handleMarkAsDone(order.id)} disabled={updating[order.id]}>
-                                                    {updating[order.id] ? <CircularProgress size={20}/> : 'Done'}
-                                                </Button>
-                                            </Stack>
-                                        )}
-                                        {order.status === 'done' && (
-                                            <Stack direction="row" spacing={1} alignItems="center" justifyContent="center">
-                                                 <Button size="small" variant="outlined" component="a" href={order.resultFileUrl} target="_blank" rel="noopener noreferrer">Download Hasil</Button>
-                                                 <Chip label="Selesai" color="success" variant="filled" size="small" />
-                                            </Stack>
-                                        )}
-                                        {!['completed', 'done'].includes(order.status) && (
-                                            <Typography variant="caption" color="text.secondary">-</Typography>
-                                        )}
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
-            )}
-        </Container>
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="80vh">
+        <CircularProgress />
+      </Box>
     );
+  }
+
+  return (
+    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      <Typography variant="h4" gutterBottom>Riwayat Pesanan</Typography>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+          <br />
+          <small>Pastikan field di Firestore bernama 'userId' dan Index sudah dibuat.</small>
+        </Alert>
+      )}
+
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Order ID</TableCell>
+              <TableCell>Tanggal</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell align="right">Total</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {orders.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={4} align="center">Belum ada riwayat pesanan.</TableCell>
+              </TableRow>
+            ) : (
+              orders.map((order) => (
+                <TableRow key={order.id}>
+                  <TableCell>{order.id}</TableCell>
+                  <TableCell>
+                    {order.createdAt?.toDate ? order.createdAt.toDate().toLocaleDateString() : 'N/A'}
+                  </TableCell>
+                  <TableCell>{order.status}</TableCell>
+                  <TableCell align="right">
+                    Rp {order.totalPrice?.toLocaleString() || '0'}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </Container>
+  );
 };
 
 export default History;
