@@ -28,7 +28,7 @@ import {
   Analytics,
   TrendingUp,
   AccountBalance,
-  Marketing,
+  Campaign,
   Dashboard,
   Support,
   Api,
@@ -55,7 +55,7 @@ const FREE_FEATURES = [
 const PREMIUM_FEATURES = [
   { icon: <TrendingUp />, title: 'Analisis Pasar & Kompetitor', desc: 'Analisis mendalam kondisi pasar dan posisi kompetitor untuk menemukan peluang.' },
   { icon: <AccountBalance />, title: 'Analisis Keuangan Dasar', desc: 'Hitung margin keuntungan dan estimasi BEP (Break-Even Point) bisnis Anda.' },
-  { icon: <Marketing />, title: 'Strategi Pemasaran Digital', desc: 'Evaluasi konten dan iklan untuk strategi pemasaran yang lebih efektif.' },
+  { icon: <Campaign />, title: 'Strategi Pemasaran Digital', desc: 'Evaluasi konten dan iklan untuk strategi pemasaran yang lebih efektif.' },
   { icon: <Dashboard />, title: 'Dashboard Custom Interaktif', desc: 'Visualisasi data dengan dashboard yang disesuaikan kebutuhan bisnis Anda.' },
   { icon: <Groups />, title: 'Konsultasi Online', desc: 'Sesi konsultasi langsung dengan tim ahli (Growth: 1x/bulan, Pro: 2x/bulan).' },
   { icon: <Api />, title: 'Integrasi API', desc: 'Koneksi ke sistem internal klien untuk Enterprise.' },
