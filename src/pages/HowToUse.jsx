@@ -13,105 +13,193 @@ import {
   List,
   ListItem,
   ListItemIcon,
-  ListItemText
+  ListItemText,
+  Chip,
 } from '@mui/material';
-import { CheckCircleOutline, TextFields, UploadFile, Download, Payment, VerifiedUser, HourglassTop, RateReview } from '@mui/icons-material';
+import {
+  CheckCircleOutline,
+  TextFields,
+  UploadFile,
+  Download,
+  Payment,
+  VerifiedUser,
+  HourglassTop,
+  RateReview,
+  Analytics,
+  TrendingUp,
+  AccountBalance,
+  Marketing,
+  Dashboard,
+  Support,
+  Api,
+  Groups,
+} from '@mui/icons-material';
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
-
   return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`how-to-use-tabpanel-${index}`}
-      aria-labelledby={`how-to-use-tab-${index}`}
-      {...other}
-    >
-      {value === index && (
-        <Box sx={{ p: { xs: 2, md: 3 } }}>
-          {children}
-        </Box>
-      )}
+    <div role="tabpanel" hidden={value !== index} id={`how-to-use-tabpanel-${index}`} {...other}>
+      {value === index && <Box sx={{ p: { xs: 2, md: 3 } }}>{children}</Box>}
     </div>
   );
 }
 
+// Fitur-fitur app
+const FREE_FEATURES = [
+  { icon: <TextFields />, title: 'Analisis Sentimen Teks', desc: 'Paste teks langsung untuk analisis sentimen otomatis (positif, negatif, netral).' },
+  { icon: <UploadFile />, title: 'Upload CSV/Excel Batch', desc: 'Unggah file CSV atau Excel dengan banyak data tanpa batas baris.' },
+  { icon: <Analytics />, title: 'Ekstraksi Kata Kunci N-Gram', desc: 'Dapatkan kata kunci dan frasa penting dari data menggunakan metode N-Gram.' },
+  { icon: <Download />, title: 'Statistik & Unduh Hasil', desc: 'Lihat statistik kompleksitas teks dan unduh laporan lengkap dalam format CSV.' },
+];
+
+const PREMIUM_FEATURES = [
+  { icon: <TrendingUp />, title: 'Analisis Pasar & Kompetitor', desc: 'Analisis mendalam kondisi pasar dan posisi kompetitor untuk menemukan peluang.' },
+  { icon: <AccountBalance />, title: 'Analisis Keuangan Dasar', desc: 'Hitung margin keuntungan dan estimasi BEP (Break-Even Point) bisnis Anda.' },
+  { icon: <Marketing />, title: 'Strategi Pemasaran Digital', desc: 'Evaluasi konten dan iklan untuk strategi pemasaran yang lebih efektif.' },
+  { icon: <Dashboard />, title: 'Dashboard Custom Interaktif', desc: 'Visualisasi data dengan dashboard yang disesuaikan kebutuhan bisnis Anda.' },
+  { icon: <Groups />, title: 'Konsultasi Online', desc: 'Sesi konsultasi langsung dengan tim ahli (Growth: 1x/bulan, Pro: 2x/bulan).' },
+  { icon: <Api />, title: 'Integrasi API', desc: 'Koneksi ke sistem internal klien untuk Enterprise.' },
+];
+
 const FreeUseGuide = () => (
-    <Paper elevation={0} sx={{ p: { xs: 2, md: 4 }, bgcolor: 'background.paper'}}>
-        <Typography variant="h5" component="h3" fontWeight="bold" gutterBottom>Langkah-langkah Analisis Gratis</Typography>
-        <List>
-            <ListItem>
-                <ListItemIcon><TextFields color="primary" /></ListItemIcon>
-                <ListItemText primary="1. Masukkan Teks atau Unggah File" secondary="Pilih mode, lalu paste teks Anda atau unggah file CSV/Excel di halaman 'Analyzer'." />
-            </ListItem>
-            <ListItem>
-                <ListItemIcon><CheckCircleOutline color="primary" /></ListItemIcon>
-                <ListItemText primary="2. Lihat Hasil Langsung" secondary="Hasil analisis sentimen, kata kunci N-Gram, dan statistik teks akan ditampilkan secara instan." />
-            </ListItem>
-            <ListItem>
-                <ListItemIcon><Download color="primary" /></ListItemIcon>
-                <ListItemText primary="3. Unduh Laporan Anda" secondary="Klik tombol 'Download Results' untuk menyimpan wawasan Anda dalam format CSV." />
-            </ListItem>
-        </List>
-    </Paper>
+  <Paper elevation={0} sx={{ p: { xs: 2, md: 4 }, bgcolor: 'background.paper' }}>
+    <Typography variant="h5" component="h3" fontWeight="bold" gutterBottom>
+      Fitur Gratis untuk Semua
+    </Typography>
+    <Typography sx={{ color: 'text.secondary', mb: 3 }}>
+      Paket Free (Self-Service) - tanpa batas penggunaan
+    </Typography>
+    <List>
+      {FREE_FEATURES.map((f, i) => (
+        <ListItem key={i} sx={{ mb: 2 }}>
+          <ListItemIcon>
+            <Box sx={{
+              width: 40, height: 40, borderRadius: 2,
+              bgcolor: 'primary.main', display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}>
+              {React.cloneElement(f.icon, { sx: { color: '#fff' } })}
+            </Box>
+          </ListItemIcon>
+          <ListItemText
+            primary={<Typography fontWeight="bold">{f.title}</Typography>}
+            secondary={f.desc}
+          />
+        </ListItem>
+      ))}
+    </List>
+    <Box sx={{ mt: 3, p: 2, bgcolor: 'rgba(0,255,163,0.1)', borderRadius: 2, border: '1px solid rgba(0,255,163,0.3)' }}>
+      <Typography variant="body2" sx={{ color: '#00FFA3' }}>
+        💡 Cocok untuk mahasiswa, peneliti, dan UMKM yang baru memulai analisis data.
+      </Typography>
+    </Box>
+  </Paper>
 );
 
 const premiumSteps = [
-  { label: 'Pilih & Beli Paket', icon: <Payment />, description: 'Pilih paket (Growth, Pro, dll) dari halaman Harga, lalu lakukan checkout. Anda akan diarahkan ke halaman pembayaran.' },
-  { label: 'Unggah Bukti Transfer', icon: <UploadFile />, description: 'Lakukan pembayaran sesuai instruksi dan unggah bukti transfer Anda di halaman pembayaran.' },
-  { label: 'Tunggu Verifikasi Admin', icon: <HourglassTop />, description: 'Tim kami akan memverifikasi pembayaran Anda. Halaman status pesanan akan diperbarui secara otomatis setelah selesai.' },
-  { label: 'Unggah File & Komentar', icon: <RateReview />, description: 'Setelah terverifikasi, Anda bisa mengunggah file data (CSV, DOCX, dll.) beserta komentar atau instruksi spesifik untuk tim analis kami.' },
-  { label: 'Analisis oleh Tim Kami', icon: <VerifiedUser />, description: 'Analis data kami akan memproses file dan instruksi Anda untuk menghasilkan laporan insight yang mendalam.' },
-  { label: 'Unduh Hasil Analisis', icon: <Download />, description: 'Anda akan mendapatkan notifikasi saat hasil sudah siap. Unduh laporan analisis lengkap Anda dari halaman pembayaran/riwayat.' },
-  { label: 'Selesaikan Pesanan & Cek Riwayat', icon: <CheckCircleOutline />, description: 'Setelah hasil diunduh, Anda bisa menandai pesanan sebagai selesai ("Done") dan melihat kembali detailnya kapan saja di halaman Riwayat.' },
+  {
+    label: 'Pilih Paket',
+    icon: <Payment />,
+    description: 'Pilih paket yang sesuai kebutuhan (Audit Awal, Growth, Pro, atau Enterprise) dari halaman Harga.'
+  },
+  {
+    label: 'Bayar & Upload Bukti',
+    icon: <UploadFile />,
+    description: 'Transfer sesuai nominal paket, lalu upload bukti transfer di halaman pembayaran.'
+  },
+  {
+    label: 'Verifikasi Admin',
+    icon: <HourglassTop />,
+    description: 'Tim kami akan memverifikasi pembayaran. Halaman payment akan update otomatis.'
+  },
+  {
+    label: 'Growth/Pro: Input Kontak',
+    icon: <RateReview />,
+    description: 'Untuk paket Growth & Pro, isi data kontak untuk penjadwalan sesi konsultasi.'
+  },
+  {
+    label: 'Upload Data & Instruksi',
+    icon: <UploadFile />,
+    description: 'Unggah file data bisnis Anda (CSV, Excel, dll) beserta komentar atau instruksi khusus.'
+  },
+  {
+    label: 'Tim Analis Memproses',
+    icon: <VerifiedUser />,
+    description: 'Analis data kami akan menganalisis data dan membuat laporan insight mendalam.'
+  },
+  {
+    label: 'Terima Hasil & Konsultasi',
+    icon: <Download />,
+    description: 'Download hasil analisis dan gunakan untuk sesi konsultasi jika paket Anda termasuk konsultasi.'
+  },
+  {
+    label: 'Selesai & Lihat Riwayat',
+    icon: <CheckCircleOutline />,
+    description: 'Tandai pesanan selesai. Semua pesanan dan hasil bisa dilihat di halaman Riwayat.'
+  },
 ];
 
 const PremiumUseGuide = () => (
-    <Box>
-         <Stepper orientation="vertical">
-            {premiumSteps.map((step, index) => (
-                <Step key={step.label} active={true}>
-                    <StepLabel 
-                        icon={step.icon} 
-                        sx={{ '.MuiStepLabel-label': { fontWeight: 'bold', fontSize: '1.1rem' } }}
-                    >
-                        {step.label}
-                    </StepLabel>
-                    <StepContent>
-                        <Typography>{step.description}</Typography>
-                    </StepContent>
-                </Step>
-            ))}
-        </Stepper>
+  <Box>
+    <Typography variant="h5" fontWeight="bold" gutterBottom>
+      Paket Berbayar (Premium)
+    </Typography>
+    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 3 }}>
+      <Chip label="Audit Awal" color="primary" />
+      <Chip label="Growth" color="primary" />
+      <Chip label="Pro" color="primary" />
+      <Chip label="Enterprise" color="primary" />
     </Box>
+
+    {/* Feature Preview */}
+    <Typography variant="subtitle2" sx={{ color: 'text.secondary', mb: 2 }}>
+      Fitur premium yang tersedia:
+    </Typography>
+    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2, mb: 4 }}>
+      {PREMIUM_FEATURES.map((f, i) => (
+        <Box key={i} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+          <Box sx={{ color: 'primary.main', mt: 0.5 }}>{f.icon}</Box>
+          <Box>
+            <Typography variant="body2" fontWeight="bold">{f.title}</Typography>
+            <Typography variant="caption" color="text.secondary">{f.desc}</Typography>
+          </Box>
+        </Box>
+      ))}
+    </Box>
+
+    <Typography variant="subtitle2" sx={{ color: 'text.secondary', mb: 2 }}>
+      Alur kerja:
+    </Typography>
+    <Stepper orientation="vertical">
+      {premiumSteps.map((step, index) => (
+        <Step key={step.label} active={true}>
+          <StepLabel
+            icon={step.icon}
+            sx={{ '.MuiStepLabel-label': { fontWeight: 'bold', fontSize: '1rem' } }}
+          >
+            {step.label}
+          </StepLabel>
+          <StepContent>
+            <Typography variant="body2">{step.description}</Typography>
+          </StepContent>
+        </Step>
+      ))}
+    </Stepper>
+  </Box>
 );
 
 function HowToUse() {
   const [tabValue, setTabValue] = useState(0);
 
-  const handleTabChange = (event, newValue) => {
-    setTabValue(newValue);
-  };
-
   return (
     <Container maxWidth="md" sx={{ py: { xs: 3, md: 6 } }}>
-      <Typography 
-        variant="h2" 
-        component="h1" 
-        sx={{ 
-          textAlign: 'center', 
-          mb: { xs: 4, md: 6 }, 
-          fontWeight: 700 
-        }}
-      >
+      <Typography variant="h3" component="h1" sx={{ textAlign: 'center', mb: { xs: 4, md: 6 }, fontWeight: 700 }}>
         Cara Penggunaan
       </Typography>
       <Paper elevation={3}>
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-          <Tabs value={tabValue} onChange={handleTabChange} variant="fullWidth" aria-label="How to use tabs">
-            <Tab label="Analisis Gratis (Self-Service)" id="how-to-use-tab-0" />
-            <Tab label="Layanan Premium (with Analyst)" id="how-to-use-tab-1" />
+          <Tabs value={tabValue} onChange={(e, v) => setTabValue(v)} variant="fullWidth" aria-label="How to use tabs">
+            <Tab label="Paket Free (Self-Service)" />
+            <Tab label="Paket Premium (with Analyst)" />
           </Tabs>
         </Box>
         <TabPanel value={tabValue} index={0}>
