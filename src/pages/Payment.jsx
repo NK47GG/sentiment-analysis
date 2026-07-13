@@ -1,16 +1,18 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import { db, auth } from "../firebase";
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { db, auth } from '../firebase';
 import {
   collection,
   query,
   where,
   doc,
   updateDoc,
+  addDoc,
   serverTimestamp,
   onSnapshot,
-} from "firebase/firestore";
-import { supabase } from "../supabase";
+} from 'firebase/firestore';
+import { supabase } from '../supabase';
+import { useAuthState } from 'react-firebase-hooks/auth';
 import {
   Box,
   Typography,
@@ -23,20 +25,70 @@ import {
   AlertTitle,
   Stack,
   LinearProgress,
-} from "@mui/material";
-import { useAuthState } from "react-firebase-hooks/auth";
-import { UploadFile, CheckCircle, Download } from "@mui/icons-material";
+  Divider,
+  Card,
+  CardContent,
+} from '@mui/material';
+import {
+  UploadFile,
+  CheckCircle,
+  Download,
+  CreditCard,
+  ArrowBack,
+} from '@mui/icons-material';
 
-
-// Master list of packages to ensure price is always found
-const packageMasterList = {
-    'Audit Awal': { price: 249000 },
-    'Growth': { price: 399000 },
-    'Pro': { price: 699000 },
-    'Enterprise': { price: -1 }, // Custom price
+// Package master data - HARUS SAMA dengan Pricing.jsx
+const PACKAGES = {
+  'Audit Awal': { price: 249000, label: 'Audit Awal' },
+  'Growth': { price: 399000, label: 'Growth' },
+  'Pro': { price: 699000, label: 'Pro' },
+  'Enterprise': { price: -1, label: 'Enterprise' },
 };
 
-// --- Sub-components for each status ---
+const formatPrice = (price) => {
+  if (typeof price !== 'number' || price < 0) return 'Hubungi kami';
+  return `Rp ${price.toLocaleString('id-ID')}`;
+};
+
+// Status labels in Bahasa
+const STATUS_LABELS = {
+  pending_payment: 'Menunggu Pembayaran',
+  payment_uploaded: 'Menunggu Verifikasi',
+  payment_verified: 'Pembayaran Diterima',
+  contact_info_submitted: 'Kontak Tersimpan',
+  file_uploaded: 'Data Terkirim',
+  completed: 'Analisis Selesai',
+  done: 'Selesai',
+};
+
+// ============= SUB-COMPONENTS =============
+
+const OrderSummary = ({ order }) => (
+  <Card sx={{ mb: 3, bgcolor: 'background.paper' }}>
+    <CardContent>
+      <Typography variant="h6" gutterBottom>
+        Ringkasan Pesanan
+      </Typography>
+      <Stack spacing={1}>
+        <Box display="flex" justifyContent="space-between">
+          <Typography color="text.secondary">Paket</Typography>
+          <Typography fontWeight="bold">{order.packageType}</Typography>
+        </Box>
+        <Box display="flex" justifyContent="space-between">
+          <Typography color="text.secondary">ID Pesanan</Typography>
+          <Typography variant="body2">{order.id}</Typography>
+        </Box>
+        <Divider />
+        <Box display="flex" justifyContent="space-between">
+          <Typography fontWeight="bold">Total</Typography>
+          <Typography variant="h5" color="primary.main" fontWeight="bold">
+            {formatPrice(order.packagePrice)}
+          </Typography>
+        </Box>
+      </Stack>
+    </CardContent>
+  </Card>
+);
 
 const PaymentPending = ({ order, onUpdate }) => {
   const [proofFile, setProofFile] = useState(null);
@@ -47,116 +99,137 @@ const PaymentPending = ({ order, onUpdate }) => {
   const handleFileChange = (e) => {
     if (e.target.files[0]) {
       setProofFile(e.target.files[0]);
+      setError(null);
     }
   };
 
   const handleUploadProof = async () => {
-    if (!proofFile || !order || !user) return;
+    console.log('DEBUG: handleUploadProof called', { proofFile, order, user });
+    if (!proofFile || !order || !user) {
+      console.log('DEBUG: early return - missing data');
+      return;
+    }
     setUploading(true);
     setError(null);
-    const filePath = `payment-proofs/${user.uid}-${order.id}-${proofFile.name}`;
 
     try {
+      console.log('DEBUG: Starting upload...');
+      const timestamp = Date.now();
+      const safeName = proofFile.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const filePath = `payment-proofs/${user.uid}-${order.id}-${timestamp}-${safeName}`;
       const { error: uploadError } = await supabase.storage
-        .from("insightify-files")
+        .from('insightify-files')
         .upload(filePath, proofFile);
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('DEBUG: Supabase upload error:', uploadError);
+        throw uploadError;
+      }
+      console.log('DEBUG: Upload success, getting URL...');
 
       const { data } = supabase.storage
-        .from("insightify-files")
+        .from('insightify-files')
         .getPublicUrl(filePath);
-      if (!data.publicUrl) throw new Error("Could not get public URL.");
+      console.log('DEBUG: Public URL:', data?.publicUrl);
+      if (!data?.publicUrl) throw new Error('Could not get public URL');
 
-      const updatedFields = {
-        status: "payment_uploaded",
+      console.log('DEBUG: Updating Firestore...');
+      const orderRef = doc(db, 'orders', order.id);
+      await updateDoc(orderRef, {
+        status: 'payment_uploaded',
         buktiTransferUrl: data.publicUrl,
         updatedAt: serverTimestamp(),
-      };
+      });
+      console.log('DEBUG: Firestore updated!');
 
-      const orderRef = doc(db, "orders", order.id);
-      await updateDoc(orderRef, updatedFields);
-
-      onUpdate({ ...order, status: "payment_uploaded" });
-
+      // Call onUpdate to notify parent
+      if (onUpdate) {
+        onUpdate({ ...order, status: 'payment_uploaded', buktiTransferUrl: data.publicUrl });
+      }
     } catch (err) {
-      setError(`File upload failed: ${err.message}. Please try again.`);
-      console.error(err);
+      console.error('DEBUG: Upload failed:', err);
+      setError('Upload gagal: ' + err.message);
+    } finally {
+      console.log('DEBUG: Finally block - setting uploading to false');
       setUploading(false);
     }
   };
 
   return (
     <Box>
-      <Alert severity="info" sx={{ mb: 2 }}>
-        <AlertTitle>Menunggu Pembayaran</AlertTitle>
-        Silakan transfer total pembayaran dan unggah bukti transfer.
+      <Alert severity="info" sx={{ mb: 3 }}>
+        <AlertTitle>Transfer Pembayaran</AlertTitle>
+        Silakan transfer ke rekening berikut dan upload bukti transfer:
       </Alert>
-      <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-        BCA: 123-456-7890
-      </Typography>
-      <Typography variant="body1" gutterBottom>
-        Atas Nama: PT Insightify Analitika
-      </Typography>
+
+      <Paper sx={{ p: 2, mb: 3, bgcolor: 'background.default' }}>
+        <Typography variant="h6">BCA</Typography>
+        <Typography variant="h5" fontWeight="bold">123-456-7890</Typography>
+        <Typography color="text.secondary">PT Insightify Analitika</Typography>
+      </Paper>
 
       <TextField
         type="file"
         fullWidth
         onChange={handleFileChange}
-        sx={{ my: 2 }}
-        helperText="Unggah screenshot atau PDF bukti transfer Anda."
+        sx={{ mb: 2 }}
+        helperText="Upload screenshot atau PDF bukti transfer"
       />
+
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
       <Button
         variant="contained"
+        size="large"
+        fullWidth
         onClick={handleUploadProof}
         disabled={!proofFile || uploading}
-        startIcon={uploading ? <CircularProgress size={20} color="inherit" /> : <UploadFile />}
+        startIcon={uploading ? <CircularProgress size={20} /> : <UploadFile />}
       >
-        {uploading ? "Mengunggah..." : "Unggah Bukti Transfer"}
+        {uploading ? 'Mengunggah...' : 'Unggah Bukti Transfer'}
       </Button>
     </Box>
   );
 };
 
 const ContactInfoForm = ({ order, onUpdate }) => {
-  const [contactEmail, setContactEmail] = useState('');
-  const [contactPhone, setContactPhone] = useState('');
+  const [contactEmail, setContactEmail] = useState(order.contactEmail || '');
+  const [contactPhone, setContactPhone] = useState(order.contactPhone || '');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   const handleSubmit = async () => {
     if (!contactEmail || !contactPhone) {
-      setError('Email dan nomor telepon wajib diisi.');
+      setError('Email dan nomor telepon wajib diisi');
       return;
     }
     setSubmitting(true);
     setError('');
 
     try {
-      const orderRef = doc(db, "orders", order.id);
+      const orderRef = doc(db, 'orders', order.id);
       await updateDoc(orderRef, {
-        status: "contact_info_submitted",
-        contactEmail: contactEmail,
-        contactPhone: contactPhone,
+        status: 'contact_info_submitted',
+        contactEmail,
+        contactPhone,
         updatedAt: serverTimestamp(),
       });
-      onUpdate({ ...order, status: "contact_info_submitted", contactEmail, contactPhone });
+      onUpdate({ ...order, status: 'contact_info_submitted', contactEmail, contactPhone });
     } catch (err) {
-      console.error("Gagal menyimpan info kontak:", err);
-      setError("Gagal menyimpan informasi. Silakan coba lagi.");
+      setError('Gagal menyimpan: ' + err.message);
       setSubmitting(false);
     }
   };
 
   return (
     <Box>
-      <Alert severity="info" sx={{ mb: 2 }}>
-        <AlertTitle>Informasi Kontak Konsultasi</AlertTitle>
-        Paket Anda termasuk sesi konsultasi. Silakan isi detail kontak Anda agar tim kami dapat menghubungi untuk penjadwalan.
+      <Alert severity="info" sx={{ mb: 3 }}>
+        <AlertTitle>Sesi Konsultasi</AlertTitle>
+        Isi data kontak untuk penjadwalan konsultasi.
       </Alert>
-      <Stack spacing={2} sx={{ my: 2 }}>
+
+      <Stack spacing={2}>
         <TextField
-          label="Email untuk Dihubungi"
+          label="Email"
           type="email"
           fullWidth
           value={contactEmail}
@@ -164,7 +237,7 @@ const ContactInfoForm = ({ order, onUpdate }) => {
           required
         />
         <TextField
-          label="Nomor Telepon (WhatsApp)"
+          label="No. Telepon / WhatsApp"
           type="tel"
           fullWidth
           value={contactPhone}
@@ -172,22 +245,27 @@ const ContactInfoForm = ({ order, onUpdate }) => {
           required
         />
       </Stack>
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
+      {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
+
       <Button
         variant="contained"
+        size="large"
+        fullWidth
+        sx={{ mt: 3 }}
         onClick={handleSubmit}
         disabled={submitting}
-        startIcon={submitting ? <CircularProgress size={20} color="inherit" /> : <CheckCircle />}
+        startIcon={submitting ? <CircularProgress size={20} /> : <CheckCircle />}
       >
-        {submitting ? "Menyimpan..." : "Simpan & Lanjutkan Unggah Data"}
+        {submitting ? 'Menyimpan...' : 'Simpan & Lanjutkan'}
       </Button>
     </Box>
   );
 };
 
-const DataUploadRequired = ({ order, onUpdate }) => {
+const DataUploadForm = ({ order, onUpdate }) => {
   const [dataFile, setDataFile] = useState(null);
-  const [comments, setComments] = useState("");
+  const [comments, setComments] = useState(order.userComments || '');
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
   const [user] = useAuthState(auth);
@@ -195,139 +273,138 @@ const DataUploadRequired = ({ order, onUpdate }) => {
   const handleFileChange = (e) => {
     if (e.target.files[0]) {
       setDataFile(e.target.files[0]);
+      setError(null);
     }
   };
 
-  const handleUploadData = async () => {
-    if (!dataFile || !order || !user) {
-      setError("Please select a file to upload.");
-      return;
-    }
+  const handleUpload = async () => {
+    if (!dataFile || !order || !user) return;
     setUploading(true);
     setError(null);
-    const filePath = `data-files/${user.uid}-${order.id}-${dataFile.name}`;
 
     try {
+      const filePath = `data-files/${user.uid}-${order.id}-${dataFile.name}`;
       const { error: uploadError } = await supabase.storage
-        .from("insightify-files")
+        .from('insightify-files')
         .upload(filePath, dataFile);
       if (uploadError) throw uploadError;
 
       const { data } = supabase.storage
-        .from("insightify-files")
+        .from('insightify-files')
         .getPublicUrl(filePath);
-      if (!data.publicUrl) throw new Error("Could not get public URL for the data file.");
 
-      const updatedFields = {
-        status: "file_uploaded",
+      const orderRef = doc(db, 'orders', order.id);
+      await updateDoc(orderRef, {
+        status: 'file_uploaded',
         dataFileUrl: data.publicUrl,
         userComments: comments,
         updatedAt: serverTimestamp(),
-      };
+      });
 
-      const orderRef = doc(db, "orders", order.id);
-      await updateDoc(orderRef, updatedFields);
-
-      onUpdate({ ...order, status: "file_uploaded" });
-
+      onUpdate({ ...order, status: 'file_uploaded', dataFileUrl: data.publicUrl, userComments: comments });
     } catch (err) {
-      setError(`Data file upload failed: ${err.message}. Please try again.`);
-      console.error(err);
+      setError('Upload gagal: ' + err.message);
       setUploading(false);
     }
   };
 
   return (
     <Box>
-      <Alert severity="success" sx={{ mb: 2 }}>
-        <AlertTitle>Langkah Terakhir: Unggah Data</AlertTitle>
-        Silakan unggah file data Anda untuk dianalisis.
+      <Alert severity="success" sx={{ mb: 3 }}>
+        <AlertTitle>Unggah Data</AlertTitle>
+        Upload file data untuk analisis.
       </Alert>
+
       <TextField
         type="file"
         fullWidth
         onChange={handleFileChange}
-        sx={{ my: 2 }}
-        helperText="Pilih file yang relevan untuk analisis (misal: .csv, .xlsx, .txt, .docx)."
+        sx={{ mb: 2 }}
+        helperText="CSV, Excel, TXT, atau DOCX"
       />
+
       <TextField
-        label="Komentar atau Instruksi Tambahan (Opsional)"
+        label="Catatan (opsional)"
         multiline
-        rows={4}
+        rows={3}
         fullWidth
         value={comments}
         onChange={(e) => setComments(e.target.value)}
-        sx={{ my: 2 }}
+        sx={{ mb: 2 }}
       />
+
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
       <Button
         variant="contained"
-        onClick={handleUploadData}
+        size="large"
+        fullWidth
+        onClick={handleUpload}
         disabled={!dataFile || uploading}
-        startIcon={uploading ? <CircularProgress size={20} color="inherit" /> : <UploadFile />}
+        startIcon={uploading ? <CircularProgress size={20} /> : <UploadFile />}
       >
-        {uploading ? "Mengunggah Data..." : "Kirim Data untuk Analisis"}
+        {uploading ? 'Mengunggah...' : 'Kirim untuk Analisis'}
       </Button>
     </Box>
   );
 };
 
+const WaitingScreen = ({ title, message }) => (
+  <Box sx={{ textAlign: 'center', py: 4 }}>
+    <Typography variant="h6" gutterBottom>{title}</Typography>
+    <LinearProgress sx={{ my: 2 }} />
+    <Typography color="text.secondary">{message}</Typography>
+  </Box>
+);
+
 const ResultsReady = ({ order }) => {
   const navigate = useNavigate();
 
-  const handleMarkAsDone = async () => {
-    if (!order) return;
+  const handleDone = async () => {
     try {
-      const orderRef = doc(db, "orders", order.id);
-      await updateDoc(orderRef, { status: "done" });
-      navigate('/');
+      const orderRef = doc(db, 'orders', order.id);
+      await updateDoc(orderRef, { status: 'done' });
+      navigate('/history');
     } catch (err) {
-      console.error(`Gagal menyelesaikan pesanan: ${err.message}.`);
+      console.error('Gagal:', err);
     }
   };
 
   return (
     <Box>
-      <Alert severity="success" sx={{ mb: 2 }}>
+      <Alert severity="success" sx={{ mb: 3 }}>
         <AlertTitle>Analisis Selesai!</AlertTitle>
-        Hasil analisis Anda sudah siap untuk diunduh.
+        Hasil analisis siap diunduh.
       </Alert>
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
         <Button
           variant="contained"
           href={order.resultFileUrl}
           target="_blank"
-          rel="noopener noreferrer"
           startIcon={<Download />}
         >
           Download Hasil
         </Button>
-        <Button variant="outlined" onClick={handleMarkAsDone} startIcon={<CheckCircle />}>
-          Done
+        <Button
+          variant="outlined"
+          onClick={handleDone}
+          startIcon={<CheckCircle />}
+        >
+          Tandai Selesai
         </Button>
         <Button
           variant="text"
-          color="primary"
-          onClick={() => navigate("/history")}
+          onClick={() => navigate('/history')}
         >
-          Cek History
+          Lihat Riwayat
         </Button>
       </Stack>
     </Box>
   );
 };
 
-const WaitingScreen = ({ title, message }) => (
-  <Box sx={{ textAlign: "center" }}>
-    <Typography variant="h5" gutterBottom>
-      {title}
-    </Typography>
-    <LinearProgress sx={{ my: 2 }} />
-    <Typography variant="body1" color="text.secondary">
-      {message}
-    </Typography>
-  </Box>
-);
+// ============= MAIN COMPONENT =============
 
 const Payment = () => {
   const [user, loadingAuth] = useAuthState(auth);
@@ -336,44 +413,47 @@ const Payment = () => {
   const [loadingPage, setLoadingPage] = useState(true);
   const [error, setError] = useState(null);
 
-  const handleOrderUpdate = useCallback((newOrderState) => {
-    setOrder(newOrderState);
-  }, []);
+  const handleUpdate = (newOrder) => {
+    setOrder(newOrder);
+  };
 
+  // Listen to real-time order updates
   useEffect(() => {
     if (loadingAuth) return;
     if (!user) {
-      navigate("/signin");
+      navigate('/signin');
       return;
     }
 
+    const activeStatuses = [
+      'pending_payment',
+      'payment_uploaded',
+      'payment_verified',
+      'contact_info_submitted',
+      'file_uploaded',
+      'completed',
+    ];
+
     const q = query(
-      collection(db, "orders"),
-      where("userId", "==", user.uid),
-      where("status", "in", [
-        "pending_payment",
-        "payment_uploaded",
-        "payment_verified",
-        "contact_info_submitted",
-        "file_uploaded",
-        "completed",
-      ])
+      collection(db, 'orders'),
+      where('userId', '==', user.uid),
+      where('status', 'in', activeStatuses)
     );
 
     const unsubscribe = onSnapshot(
       q,
-      (querySnapshot) => {
-        if (!querySnapshot.empty) {
-          const orderDoc = querySnapshot.docs[0];
-          setOrder({ ...orderDoc.data(), id: orderDoc.id });
+      (snapshot) => {
+        if (!snapshot.empty) {
+          const doc = snapshot.docs[0];
+          setOrder({ ...doc.data(), id: doc.id });
         } else {
-          setOrder(null); // No active order found, triggers re-render
+          setOrder(null);
         }
         setLoadingPage(false);
       },
       (err) => {
-        console.error("Real-time listener error: ", err);
-        setError("Gagal menyinkronkan status pesanan. Coba muat ulang halaman.");
+        console.error('Listener error:', err);
+        setError('Gagal sync pesanan');
         setLoadingPage(false);
       }
     );
@@ -381,101 +461,78 @@ const Payment = () => {
     return () => unsubscribe();
   }, [user, loadingAuth, navigate]);
 
-  const renderPrice = () => {
-      if (!order) return 'Harga tidak tersedia';
-
-      let price = order.packagePrice;
-
-      if (typeof price !== 'number') {
-          const matchedPackage = packageMasterList[order.packageType];
-          if (matchedPackage) {
-              price = matchedPackage.price;
-          }
-      }
-
-      if (typeof price === 'number' && price >= 0) {
-          return `Total: Rp ${new Intl.NumberFormat('id-ID').format(price)}`;
-      }
-
-      return 'Harga tidak tersedia';
-  }
-
+  // Render content based on status
   const renderContent = () => {
-    if (loadingPage) {
-        return (
-          <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
-            <CircularProgress />
-          </Box>
-        );
-    }
-
-    if (error) {
-        return <Alert severity="error">{error}</Alert>;
-    }
-
     if (!order) {
       return (
-        <Alert severity="info" action={<Button onClick={() => navigate('/pricing')}>Pilih Paket</Button>}>
-          Anda tidak memiliki pesanan aktif.
+        <Alert severity="info" action={
+          <Button onClick={() => navigate('/pricing')}>Pilih Paket</Button>
+        }>
+          Tidak ada pesanan aktif.
         </Alert>
       );
     }
 
     switch (order.status) {
-      case "pending_payment":
-        return <PaymentPending order={order} onUpdate={handleOrderUpdate} />;
-      case "payment_uploaded":
-        return (
-          <WaitingScreen
-            title="Menunggu Verifikasi"
-            message="Bukti pembayaran Anda sedang diperiksa. Halaman ini akan diperbarui secara otomatis."
-          />
-        );
-      case "payment_verified":
+      case 'pending_payment':
+        return <PaymentPending order={order} onUpdate={handleUpdate} />;
+      case 'payment_uploaded':
+        return <WaitingScreen title="Menunggu Verifikasi" message="Bukti pembayaran sedang diperiksa." />;
+      case 'payment_verified':
         if (order.packageType === 'Growth' || order.packageType === 'Pro') {
-            return <ContactInfoForm order={order} onUpdate={handleOrderUpdate} />;
+          return <ContactInfoForm order={order} onUpdate={handleUpdate} />;
         }
-        return <DataUploadRequired order={order} onUpdate={handleOrderUpdate} />;
-      case "contact_info_submitted":
-        return <DataUploadRequired order={order} onUpdate={handleOrderUpdate} />;
-      case "file_uploaded":
-        return (
-          <WaitingScreen
-            title="Analisis Berlangsung"
-            message="File Anda sedang dianalisis. Anda akan diberi tahu jika hasilnya sudah siap."
-          />
-        );
-      case "completed":
+        return <DataUploadForm order={order} onUpdate={handleUpdate} />;
+      case 'contact_info_submitted':
+        return <DataUploadForm order={order} onUpdate={handleUpdate} />;
+      case 'file_uploaded':
+        return <WaitingScreen title="Analisis Berlangsung" message="Data sedang diproses." />;
+      case 'completed':
         return <ResultsReady order={order} />;
+      case 'done':
+        navigate('/history');
+        return (
+          <Alert severity="success">
+            <AlertTitle>Pesanan Selesai</AlertTitle>
+            Redirecting to history...
+          </Alert>
+        );
       default:
-        return <Alert severity="error">Status pesanan tidak diketahui: {order.status}</Alert>;
+        return <Alert severity="error">Status tidak dikenal: {order.status}</Alert>;
     }
   };
 
+  if (loadingPage || loadingAuth) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+        <CircularProgress />
+      </Box>
+    );
+  }
+
   return (
     <Container maxWidth="md">
-      <Paper sx={{ p: { xs: 2, md: 4 }, mt: 4 }}>
-        {order && !loadingPage && (
-          <Box mb={3}>
-            <Typography variant="h4" gutterBottom>
-              Detail Pesanan
-            </Typography>
-            <Stack direction={{xs: 'column', sm: 'row'}} spacing={{xs: 1, sm: 2}} justifyContent="space-between">
-              <Typography variant="h6">Paket: {order.packageType}</Typography>
-              <Typography variant="body1" color="text.secondary">
-                ID Pesanan: {order.id}
-              </Typography>
-            </Stack>
-            <Typography
-              variant="h5"
-              component="p"
-              sx={{ fontWeight: "bold", color: "primary.main", mt: 1 }}
-            >
-              {renderPrice()}
-            </Typography>
-          </Box>
-        )}
-        <Box mt={2}>{renderContent()}</Box>
+      <Button
+        startIcon={<ArrowBack />}
+        onClick={() => navigate('/pricing')}
+        sx={{ mb: 2 }}
+      >
+        Kembali ke Harga
+      </Button>
+
+      <Paper sx={{ p: { xs: 2, md: 4 } }}>
+        <Box display="flex" alignItems="center" gap={1} mb={3}>
+          <CreditCard color="primary" />
+          <Typography variant="h5" fontWeight="bold">Pembayaran</Typography>
+        </Box>
+
+        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
+        {order && <OrderSummary order={order} />}
+
+        <Divider sx={{ my: 3 }} />
+
+        {renderContent()}
       </Paper>
     </Container>
   );

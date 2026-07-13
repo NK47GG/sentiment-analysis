@@ -13,21 +13,43 @@ service cloud.firestore {
       allow read, write: if request.auth.uid == userId;
     }
 
-    // Orders can be created by any authenticated user
-    // Users can only read their own orders
-    // Admins can read all orders
+    // Orders collection
     match /orders/{orderId} {
+      // Anyone authenticated can create orders
       allow create: if request.auth != null;
+
+      // Users can only read their own orders, admins can read all
       allow read: if request.auth.uid == resource.data.userId || isAdmin();
-      // Allow admins to update any field.
-      // Users can update their own order's status from 'completed' to 'done',
-      // and no other fields can be changed in that update.
+
+      // Allow update with these rules:
+      // 1. Admins can update anything
+      // 2. Users can update packageType/packagePrice when status is pending_payment or payment_uploaded
+      // 3. Users can update status/buktiTransferUrl when uploading payment proof
+      // 4. Users can only change status from completed to done
       allow update: if isAdmin() ||
         (
           request.auth.uid == resource.data.userId &&
-          resource.data.status == 'completed' &&
-          request.resource.data.status == 'done' &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+          (
+            // User changing package selection before payment complete
+            (resource.data.status in ['pending_payment', 'payment_uploaded'] &&
+             request.resource.data.diff(resource.data).affectedKeys().hasOnly(['packageType', 'packagePrice', 'updatedAt'])) ||
+            // User uploading payment proof (change status + buktiTransferUrl)
+            (resource.data.status == 'pending_payment' &&
+             request.resource.data.status == 'payment_uploaded' &&
+             request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'buktiTransferUrl', 'updatedAt'])) ||
+            // User uploading contact info (Growth/Pro packages)
+            (resource.data.status == 'payment_verified' &&
+             request.resource.data.status == 'contact_info_submitted' &&
+             request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'contactEmail', 'contactPhone', 'updatedAt'])) ||
+            // User uploading data file
+            (resource.data.status in ['payment_verified', 'contact_info_submitted'] &&
+             request.resource.data.status == 'file_uploaded' &&
+             request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'dataFileUrl', 'userComments', 'updatedAt'])) ||
+            // User marking completed order as done
+            (resource.data.status == 'completed' &&
+             request.resource.data.status == 'done' &&
+             request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']))
+          )
         );
     }
   }

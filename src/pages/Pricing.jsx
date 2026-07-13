@@ -126,16 +126,17 @@ const Pricing = () => {
             const querySnapshot = await getDocs(q);
 
             if (!querySnapshot.empty) {
-                 const existingOrderDoc = querySnapshot.docs[0];
-                // If user is just changing their mind before paying, update the existing order.
-                if (existingOrderDoc.data().status === 'pending_payment') {
+                const existingOrderDoc = querySnapshot.docs[0];
+                // If user is changing their mind before completing payment, update the existing order.
+                if (existingOrderDoc.data().status === 'pending_payment' ||
+                    existingOrderDoc.data().status === 'payment_uploaded') {
                     await updateDoc(existingOrderDoc.ref, {
                         packageType: packageName,
                         packagePrice: packagePrice,
                         updatedAt: serverTimestamp(),
                     });
-                } 
-                // Otherwise, the order is already in progress, just navigate them to the payment page.
+                }
+                // Navigate to payment page after update
                 navigate('/payment');
             } else {
                 await addDoc(collection(db, 'orders'), {
