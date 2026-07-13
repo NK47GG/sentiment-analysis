@@ -73,6 +73,7 @@ const Home = () => {
         <Box sx={{
             bgcolor: '#0D0C22',
             color: '#FFFFFF',
+            p: 0,
             backgroundImage: 'radial-gradient(at 20% 20%, hsla(283,74%,25%,0.3) 0px, transparent 50%), radial-gradient(at 80% 80%, hsla(163,100%,40%,0.2) 0px, transparent 50%)',
         }}>
 
